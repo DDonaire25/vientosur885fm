@@ -23,6 +23,7 @@ interface AuthState {
   register: (email: string, password: string, username: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -170,5 +171,39 @@ export const useAuthStore = create<AuthState>((set) => ({
       toast.error('Error al actualizar el perfil');
       throw error;
     }
-  }
+  },
+
+  checkAuth: async () => {
+    set({ isLoading: true });
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      return;
+    }
+    const { data: dbUser, error: dbError } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+    if (dbError) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      return;
+    }
+    set({
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        username: dbUser.nombre_usuario,
+        displayName: dbUser.nombre_completo,
+        avatar: dbUser.avatar_url,
+        cover_image: dbUser.cover_image,
+        bio: dbUser.bio,
+        website: dbUser.website,
+        disciplines: dbUser.disciplines,
+        social_links: dbUser.social_links
+      },
+      isAuthenticated: true,
+      isLoading: false
+    });
+  },
 }));

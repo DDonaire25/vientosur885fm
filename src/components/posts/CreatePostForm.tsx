@@ -26,42 +26,11 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
   const { user } = useAuthStore();
   const { addPost } = usePostStore();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      toast.error('Debes iniciar sesión para crear una publicación');
-      return;
-    }
-    if (!content.trim() && !mediaUrl) {
-      toast.error('Por favor, agrega contenido o un archivo');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await addPost({
-        userId: user.id,
-        type: postType,
-        content: content.trim(),
-        mediaUrl: mediaUrl || undefined,
-        isFavorite: false
-      });
-      setContent('');
-      setMediaUrl('');
-      setPostType('text');
-      toast.success('¡Publicación creada exitosamente!');
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      toast.error('Error al crear la publicación');
-      console.error('Failed to create post:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Subir archivo a Supabase Storage
   const uploadFile = async (file: File, folder: string) => {
     setUploadProgress(0);
     setPreviewUrl(URL.createObjectURL(file));
+    setIsSubmitting(true);
     // Simulación de progreso (Supabase no da progreso nativo)
     const fakeProgress = setInterval(() => {
       setUploadProgress((p) => {
@@ -77,6 +46,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
     const { error } = await supabase.storage.from('media').upload(filePath, file);
     clearInterval(fakeProgress);
     setUploadProgress(100);
+    setIsSubmitting(false);
     if (error) throw error;
     const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
     return urlData.publicUrl;
@@ -86,6 +56,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
   const uploadAudioBlob = async (blob: Blob) => {
     setUploadProgress(0);
     setAudioPreviewUrl(URL.createObjectURL(blob));
+    setIsSubmitting(true);
     const fakeProgress = setInterval(() => {
       setUploadProgress((p) => {
         if (p >= 90) {
@@ -99,6 +70,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
     const { error } = await supabase.storage.from('media').upload(filePath, blob);
     clearInterval(fakeProgress);
     setUploadProgress(100);
+    setIsSubmitting(false);
     if (error) throw error;
     const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
     return urlData.publicUrl;
@@ -106,7 +78,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: PostType) => {
     const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+    if (!selectedFile || isSubmitting || isRecording) return;
     setPostType(type);
     setPreviewUrl(URL.createObjectURL(selectedFile));
     try {
@@ -122,9 +94,11 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
 
   // Grabación de voz mejorada
   const handleStartRecording = async () => {
+    if (isSubmitting) return;
     setIsRecording(true);
     setRecordingTime(0);
     setAudioPreviewUrl(null);
+    setAudioBlob(null);
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const recorder = new MediaRecorder(stream);
     setMediaRecorder(recorder);
@@ -151,7 +125,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
   };
 
   const handleUploadRecordedAudio = async () => {
-    if (!audioBlob) return;
+    if (!audioBlob || isSubmitting) return;
     try {
       const url = await uploadAudioBlob(audioBlob);
       setMediaUrl(url);
@@ -163,6 +137,43 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
       toast.error('Error al subir nota de voz');
     } finally {
       setUploadProgress(0);
+    }
+  };
+
+  // Limpiar estados tras publicar
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error('Debes iniciar sesión para crear una publicación');
+      return;
+    }
+    if (!content.trim() && !mediaUrl) {
+      toast.error('Por favor, agrega contenido o un archivo');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addPost({
+        userId: user.id,
+        type: postType,
+        content: content.trim(),
+        mediaUrl: mediaUrl || undefined,
+        isFavorite: false
+      });
+      setContent('');
+      setMediaUrl('');
+      setPostType('text');
+      setPreviewUrl(null);
+      setAudioBlob(null);
+      setAudioPreviewUrl(null);
+      setRecordingTime(0);
+      toast.success('¡Publicación creada exitosamente!');
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      toast.error('Error al crear la publicación');
+      console.error('Failed to create post:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -248,25 +259,25 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
           <div className="flex items-center space-x-4">
             <label>
               <input type="file" accept="image/*" hidden onChange={e => handleFileChange(e, 'image')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'image' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}>
+              <button type="button" className={`p-2 rounded-full ${postType === 'image' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
                 <Image className="h-5 w-5" />
               </button>
             </label>
             <label>
               <input type="file" accept="video/*" hidden onChange={e => handleFileChange(e, 'video')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'video' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}>
+              <button type="button" className={`p-2 rounded-full ${postType === 'video' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
                 <Video className="h-5 w-5" />
               </button>
             </label>
             <label>
               <input type="file" accept="audio/*" hidden onChange={e => handleFileChange(e, 'audio')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'audio' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}>
+              <button type="button" className={`p-2 rounded-full ${postType === 'audio' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
                 <FileAudio className="h-5 w-5" />
               </button>
             </label>
             <label>
               <input type="file" accept=".pdf,.doc,.docx,.txt,.odt" hidden onChange={e => handleFileChange(e, 'document')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'document' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}>
+              <button type="button" className={`p-2 rounded-full ${postType === 'document' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
                 <FileText className="h-5 w-5" />
               </button>
             </label>
@@ -274,6 +285,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
               type="button"
               className={`p-2 rounded-full ${postType === 'audio' && isRecording ? 'bg-red-200 text-red-600' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
               onClick={isRecording ? handleStopRecording : handleStartRecording}
+              disabled={isSubmitting}
             >
               <Mic className="h-5 w-5" />
             </button>

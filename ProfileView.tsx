@@ -46,12 +46,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
   const [showAddGalleryModal, setShowAddGalleryModal] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const loadUserData = async () => {
     if (!user) return;
-    setIsLoading(true);
-    setError(null);
+    
     try {
       // Cargar portafolio
       const { data: portfolioData } = await supabase
@@ -100,8 +98,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
           avatar: f.avatar_url
         })));
       }
-    } catch (error: any) {
-      setError('Error cargando el perfil. Intenta de nuevo.');
+    } catch (error) {
       console.error('Error loading profile data:', error);
     } finally {
       setIsLoading(false);
@@ -109,35 +106,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
   };
 
   useEffect(() => {
-    if (user) {
-      loadUserData();
-    } else {
-      setIsLoading(false);
-    }
+    loadUserData();
   }, [user]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
   if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-lg text-gray-500 dark:text-gray-400">No se ha encontrado un usuario autenticado.<br />Por favor, inicia sesión para ver tu perfil.</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-lg text-red-500 dark:text-red-400">{error}</p>
-      </div>
-    );
+    return null;
   }
 
   const renderTabContent = () => {
@@ -339,8 +312,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
         <div className="absolute left-0 right-0 -bottom-16 flex justify-center">
           <div className="avatar h-32 w-32 ring-4 ring-white dark:ring-gray-900">
             <img 
-              src={user.avatar || '/default-avatar.png'} 
-              alt={user.displayName || user.username || 'Usuario'} 
+              src={user.avatar} 
+              alt={user.displayName} 
               className="avatar-img"
             />
           </div>
@@ -366,13 +339,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
       {/* Profile Info */}
       <div className="text-center px-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {user.displayName || user.username || 'Usuario'}
+          {user.displayName}
         </h1>
         <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">
           @{user.username}
         </p>
         <p className="text-gray-600 dark:text-gray-300 mt-3 max-w-md mx-auto">
-          {user.bio || 'No hay biografía disponible.'}
+          {user.bio}
         </p>
         
         <div className="flex justify-center mt-4 space-x-6">

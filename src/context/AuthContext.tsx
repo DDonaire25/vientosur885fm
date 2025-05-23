@@ -26,7 +26,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       login,
       register,
-      logout
+      logout,
+      checkAuth
     }}>
       {children}
     </AuthContext.Provider>

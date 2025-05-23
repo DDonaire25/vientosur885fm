@@ -106,3 +106,5 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onChange, className })
     </div>
   );
 };
+
+export default ImageUpload;
