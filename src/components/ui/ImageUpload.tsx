@@ -2,22 +2,17 @@ import React, { useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 
 interface ImageUploadProps {
-  onChange: (file: File | undefined) => void;
-  initialImage?: string;
+  onChange: (file: File | null) => void;
   className?: string;
 }
 
-export const ImageUpload: React.FC<ImageUploadProps> = ({
-  onChange,
-  initialImage,
-  className = ''
-}) => {
-  const [preview, setPreview] = useState<string>(initialImage || '');
+export const ImageUpload: React.FC<ImageUploadProps> = ({ onChange, className }) => {
+  const [preview, setPreview] = useState<string>('');
   const [isHovered, setIsHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const file = event.target.files?.[0] || null;
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -25,6 +20,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       };
       reader.readAsDataURL(file);
       onChange(file);
+    } else {
+      setPreview('');
+      onChange(null);
     }
   };
 
@@ -47,7 +45,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const handleClear = () => {
     setPreview('');
-    onChange(undefined);
+    onChange(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
