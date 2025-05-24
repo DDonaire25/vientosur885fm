@@ -46,12 +46,12 @@ export const usePostStore = create<PostState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data: posts, error } = await supabase
-        .from('publicaciones')
+        .from('posts')
         .select(`
           *,
           autor:usuarios(*),
-          comentarios(*),
-          reacciones(*)
+          comentarios:comentarios_post(*),
+          reacciones:reacciones_post(*)
         `)
         .order('creado_en', { ascending: false });
 
@@ -61,9 +61,9 @@ export const usePostStore = create<PostState>((set, get) => ({
       const transformedPosts: Post[] = await Promise.all(posts.map(async (post) => {
         // Check if post is favorited by current user
         const { data: favorite } = await supabase
-          .from('favoritos')
+          .from('favoritos_post')
           .select('*')
-          .eq('publicacion_id', post.id)
+          .eq('post_id', post.id)
           .single();
 
         return {
@@ -87,7 +87,7 @@ export const usePostStore = create<PostState>((set, get) => ({
       set({ posts: transformedPosts, isLoading: false });
     } catch (error) {
       set({ 
-        error: error instanceof Error ? error.message : 'Error al cargar publicaciones', 
+        error: error instanceof Error ? error.message : 'Error al cargar posts', 
         isLoading: false 
       });
     }
@@ -96,26 +96,17 @@ export const usePostStore = create<PostState>((set, get) => ({
   addPost: async (post) => {
     set({ isLoading: true, error: null });
     try {
-      // Considerar blog solo si el tipo es exactamente 'blog' (si existiera), pero para red social siempre usar valores por defecto
       const now = new Date().toISOString();
       const insertData = {
         autor_id: post.userId,
         tipo: post.type,
         contenido: post.content,
         multimedia_url: post.mediaUrl ? [post.mediaUrl] : [],
-        // Campos requeridos por el esquema, usar valores por defecto si no aplica
-        titulo: post.type === 'text' ? 'Post' : (post.content?.slice(0, 60) || 'Sin título'),
-        excerpt: post.content?.slice(0, 120) || '',
-        imagen_portada: post.type === 'image' ? post.mediaUrl : '',
-        categoria: '',
-        tiempo_lectura: 0,
-        publicado_en: now,
-        actualizado_en: now,
-        likes: 0,
-        comentarios: 0
+        creado_en: now,
+        actualizado_en: now
       };
       const { data, error } = await supabase
-        .from('publicaciones')
+        .from('posts')
         .insert(insertData)
         .select()
         .single();
@@ -128,7 +119,7 @@ export const usePostStore = create<PostState>((set, get) => ({
         type: data.tipo,
         content: data.contenido,
         mediaUrl: data.multimedia_url?.[0],
-        createdAt: data.publicado_en || data.creado_en,
+        createdAt: data.creado_en,
         likes: [],
         comments: [],
         isFavorite: false
@@ -140,10 +131,10 @@ export const usePostStore = create<PostState>((set, get) => ({
       toast.success('¡Publicación creada exitosamente!');
     } catch (error) {
       set({ 
-        error: error instanceof Error ? error.message : 'Error al crear publicación', 
+        error: error instanceof Error ? error.message : 'Error al crear post', 
         isLoading: false 
       });
-      toast.error('Error al crear publicación');
+      toast.error('Error al crear post');
     }
   },
   
@@ -157,18 +148,18 @@ export const usePostStore = create<PostState>((set, get) => ({
       if (isLiked) {
         // Remove like
         const { error } = await supabase
-          .from('reacciones')
+          .from('reacciones_post')
           .delete()
-          .eq('publicacion_id', postId)
+          .eq('post_id', postId)
           .eq('usuario_id', userId);
 
         if (error) throw error;
       } else {
         // Add like
         const { error } = await supabase
-          .from('reacciones')
+          .from('reacciones_post')
           .insert({
-            publicacion_id: postId,
+            post_id: postId,
             usuario_id: userId,
             tipo: 'like'
           });
@@ -197,9 +188,9 @@ export const usePostStore = create<PostState>((set, get) => ({
   addComment: async (postId, userId, content) => {
     try {
       const { data, error } = await supabase
-        .from('comentarios')
+        .from('comentarios_post')
         .insert({
-          publicacion_id: postId,
+          post_id: postId,
           autor_id: userId,
           contenido: content
         })
@@ -240,18 +231,18 @@ export const usePostStore = create<PostState>((set, get) => ({
       if (post.isFavorite) {
         // Remove from favorites
         const { error } = await supabase
-          .from('favoritos')
+          .from('favoritos_post')
           .delete()
-          .eq('publicacion_id', postId)
+          .eq('post_id', postId)
           .eq('usuario_id', session.session.user.id);
 
         if (error) throw error;
       } else {
         // Add to favorites
         const { error } = await supabase
-          .from('favoritos')
+          .from('favoritos_post')
           .insert({
-            publicacion_id: postId,
+            post_id: postId,
             usuario_id: session.session.user.id
           });
 

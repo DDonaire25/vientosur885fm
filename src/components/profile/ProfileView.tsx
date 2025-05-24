@@ -232,7 +232,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
                   whileHover={{ x: 2 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <div className="flex items-center">
+                  <Link to={`/profile/${follower.username}`} className="flex items-center">
                     <div className="avatar h-10 w-10 mr-3">
                       <img 
                         src={follower.avatar} 
@@ -246,7 +246,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
                       </h4>
                       <p className="text-xs text-gray-500">@{follower.username}</p>
                     </div>
-                  </div>
+                  </Link>
                   <div className="flex space-x-2">
                     <button className="p-2 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
                       <Heart className="h-4 w-4" />

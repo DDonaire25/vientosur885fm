@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { Image, Video, FileAudio, FileText, Mic, Send } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, Mic, Send, Camera } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { PostType, usePostStore } from '../../store/postStore';
 import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
+import FileUploadWithPreview from '../ui/FileUploadWithPreview';
+import AudioRecorder from '../ui/AudioRecorder';
+import VideoRecorder from '../ui/VideoRecorder';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 
 interface CreatePostFormProps {
   onSuccess?: () => void;
@@ -14,131 +18,18 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
   const [mediaUrl, setMediaUrl] = useState('');
   const [postType, setPostType] = useState<PostType>('text');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
-  const [recordingTime, setRecordingTime] = useState<number>(0);
-  let recordingInterval: NodeJS.Timeout;
+  const audioRecorderRef = useRef<any>(null);
+  const videoRecorderRef = useRef<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const { user } = useAuthStore();
   const { addPost } = usePostStore();
-
-  // Subir archivo a Supabase Storage
-  const uploadFile = async (file: File, folder: string) => {
-    setUploadProgress(0);
-    setPreviewUrl(URL.createObjectURL(file));
-    setIsSubmitting(true);
-    // Simulación de progreso (Supabase no da progreso nativo)
-    const fakeProgress = setInterval(() => {
-      setUploadProgress((p) => {
-        if (p >= 90) {
-          clearInterval(fakeProgress);
-          return p;
-        }
-        return p + 10;
-      });
-    }, 100);
-    const ext = file.name.split('.').pop();
-    const filePath = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const { error } = await supabase.storage.from('media').upload(filePath, file);
-    clearInterval(fakeProgress);
-    setUploadProgress(100);
-    setIsSubmitting(false);
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
-    return urlData.publicUrl;
-  };
-
-  // Subir blob de audio
-  const uploadAudioBlob = async (blob: Blob) => {
-    setUploadProgress(0);
-    setAudioPreviewUrl(URL.createObjectURL(blob));
-    setIsSubmitting(true);
-    const fakeProgress = setInterval(() => {
-      setUploadProgress((p) => {
-        if (p >= 90) {
-          clearInterval(fakeProgress);
-          return p;
-        }
-        return p + 10;
-      });
-    }, 100);
-    const filePath = `audio/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.webm`;
-    const { error } = await supabase.storage.from('media').upload(filePath, blob);
-    clearInterval(fakeProgress);
-    setUploadProgress(100);
-    setIsSubmitting(false);
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
-    return urlData.publicUrl;
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: PostType) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile || isSubmitting || isRecording) return;
-    setPostType(type);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
-    try {
-      const url = await uploadFile(selectedFile, type);
-      setMediaUrl(url);
-      toast.success('Archivo subido correctamente');
-    } catch (err) {
-      toast.error('Error al subir archivo');
-    } finally {
-      setUploadProgress(0);
-    }
-  };
-
-  // Grabación de voz mejorada
-  const handleStartRecording = async () => {
-    if (isSubmitting) return;
-    setIsRecording(true);
-    setRecordingTime(0);
-    setAudioPreviewUrl(null);
-    setAudioBlob(null);
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    setMediaRecorder(recorder);
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
-      setAudioBlob(blob);
-      setAudioPreviewUrl(URL.createObjectURL(blob));
-      setIsRecording(false);
-      clearInterval(recordingInterval);
-    };
-    recorder.start();
-    // Temporizador
-    recordingInterval = setInterval(() => {
-      setRecordingTime((t) => t + 1);
-    }, 1000);
-  };
-
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    mediaRecorder?.stop();
-    clearInterval(recordingInterval);
-  };
-
-  const handleUploadRecordedAudio = async () => {
-    if (!audioBlob || isSubmitting) return;
-    try {
-      const url = await uploadAudioBlob(audioBlob);
-      setMediaUrl(url);
-      setPostType('audio');
-      toast.success('Nota de voz subida');
-      setAudioBlob(null);
-      setAudioPreviewUrl(null);
-    } catch {
-      toast.error('Error al subir nota de voz');
-    } finally {
-      setUploadProgress(0);
-    }
-  };
 
   // Limpiar estados tras publicar
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,9 +55,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
       setMediaUrl('');
       setPostType('text');
       setPreviewUrl(null);
-      setAudioBlob(null);
       setAudioPreviewUrl(null);
-      setRecordingTime(0);
       toast.success('¡Publicación creada exitosamente!');
       if (onSuccess) onSuccess();
     } catch (error) {
@@ -175,6 +64,76 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Nuevo handler para integración con FileUploadWithPreview
+  const handleFileSelect = (fileUrl: string | null) => {
+    setMediaUrl(fileUrl || '');
+    if (fileUrl) {
+      // Detectar tipo por extensión
+      if (fileUrl.match(/\.(jpg|jpeg|png|gif)$/i)) setPostType('image');
+      else if (fileUrl.match(/\.(mp4|webm|mov)$/i)) setPostType('video');
+      else if (fileUrl.match(/\.(mp3|wav|ogg)$/i)) setPostType('audio');
+      else setPostType('document');
+    } else {
+      setPostType('text');
+    }
+  };
+
+  // Nuevo handler para integración con AudioRecorder
+  const handleAudioReady = (audioUrl: string | null) => {
+    setMediaUrl(audioUrl || '');
+    setPostType(audioUrl ? 'audio' : 'text');
+  };
+
+  // Nuevo handler para integración con VideoRecorder
+  const handleVideoReady = (videoUrl: string | null) => {
+    setMediaUrl(videoUrl || '');
+    setPostType(videoUrl ? 'video' : 'text');
+    setShowVideoRecorder(false);
+  };
+
+  // Handlers para grabación tipo WhatsApp
+  const handleMicPress = () => {
+    setShowAudioRecorder(true);
+    setShowFileUpload(false);
+    setShowVideoRecorder(false);
+    setIsRecording(true);
+    setTimeout(() => {
+      audioRecorderRef.current?.startRecording();
+    }, 50); // pequeño delay para asegurar montaje
+  };
+  const handleMicRelease = () => {
+    if (isRecording) {
+      audioRecorderRef.current?.stopRecording();
+      setIsRecording(false);
+    }
+  };
+  const handleMicCancel = () => {
+    if (isRecording) {
+      audioRecorderRef.current?.cancelRecording();
+      setIsRecording(false);
+    }
+  };
+
+  const handleCameraPress = () => {
+    setShowVideoRecorder(true);
+    setShowFileUpload(false);
+    setShowAudioRecorder(false);
+    setTimeout(() => {
+      videoRecorderRef.current?.startRecording();
+    }, 50);
+  };
+  const handleCameraRelease = () => {
+    videoRecorderRef.current?.stopRecording();
+  };
+  const handleCameraCancel = () => {
+    videoRecorderRef.current?.cancelRecording();
+  };
+
+  const handleEmojiSelect = (emoji: any) => {
+    setContent(content + (emoji.native || emoji.skins?.[0]?.native || ''));
+    setShowEmojiPicker(false);
   };
 
   return (
@@ -200,6 +159,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
                 required={!mediaUrl}
                 disabled={isSubmitting}
               />
+              {/* Previsualización de archivos multimedia */}
               {previewUrl && postType === 'image' && (
                 <div className="mt-2 relative rounded-lg overflow-hidden">
                   <img 
@@ -207,11 +167,6 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
                     alt="Previsualización" 
                     className="w-full h-auto max-h-[300px] object-cover rounded-lg"
                   />
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-2 bg-primary-100">
-                      <div className="h-2 bg-primary-600" style={{ width: `${uploadProgress}%` }} />
-                    </div>
-                  )}
                   <button
                     type="button"
                     onClick={() => { setPreviewUrl(null); setMediaUrl(''); }}
@@ -228,18 +183,9 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
                   <video src={mediaUrl} controls className="w-full max-h-[300px] rounded-lg" />
                 </div>
               )}
-              {audioPreviewUrl && postType === 'audio' && !isRecording && (
+              {audioPreviewUrl && postType === 'audio' && !isSubmitting && (
                 <div className="mt-2 flex flex-col items-start">
                   <audio src={audioPreviewUrl} controls className="w-full" />
-                  <button type="button" onClick={handleUploadRecordedAudio} className="btn btn-primary mt-2">Subir nota de voz</button>
-                  <button type="button" onClick={() => { setAudioBlob(null); setAudioPreviewUrl(null); }} className="btn btn-secondary mt-2">Cancelar</button>
-                </div>
-              )}
-              {isRecording && (
-                <div className="mt-2 flex items-center space-x-2">
-                  <span className="text-red-600 font-bold">● Grabando</span>
-                  <span>{recordingTime}s</span>
-                  <button type="button" onClick={handleStopRecording} className="btn btn-danger ml-2">Detener</button>
                 </div>
               )}
               {mediaUrl && postType === 'audio' && (
@@ -256,38 +202,56 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
           </div>
         </div>
         <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
-          <div className="flex items-center space-x-4">
-            <label>
-              <input type="file" accept="image/*" hidden onChange={e => handleFileChange(e, 'image')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'image' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
-                <Image className="h-5 w-5" />
-              </button>
-            </label>
-            <label>
-              <input type="file" accept="video/*" hidden onChange={e => handleFileChange(e, 'video')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'video' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
-                <Video className="h-5 w-5" />
-              </button>
-            </label>
-            <label>
-              <input type="file" accept="audio/*" hidden onChange={e => handleFileChange(e, 'audio')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'audio' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
-                <FileAudio className="h-5 w-5" />
-              </button>
-            </label>
-            <label>
-              <input type="file" accept=".pdf,.doc,.docx,.txt,.odt" hidden onChange={e => handleFileChange(e, 'document')} />
-              <button type="button" className={`p-2 rounded-full ${postType === 'document' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`} disabled={isSubmitting || isRecording}>
-                <FileText className="h-5 w-5" />
-              </button>
-            </label>
+          <div className="flex items-center space-x-2">
+            {/* Botón emoji */}
             <button
               type="button"
-              className={`p-2 rounded-full ${postType === 'audio' && isRecording ? 'bg-red-200 text-red-600' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              className="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              aria-label="Insertar emoji"
+              disabled={isSubmitting}
+            >
+              <span role="img" aria-label="emoji">😊</span>
+            </button>
+            {/* Botón clip para archivos */}
+            <button
+              type="button"
+              className="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              onClick={() => { setShowFileUpload((v) => !v); setShowAudioRecorder(false); setShowVideoRecorder(false); }}
+              aria-label="Adjuntar archivo"
+              disabled={isSubmitting}
+            >
+              <FileText className="h-5 w-5" />
+            </button>
+            {/* Botón micrófono para nota de voz */}
+            <button
+              type="button"
+              className={`p-2 rounded-full ${showAudioRecorder ? 'bg-red-200 text-red-600' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              onMouseDown={handleMicPress}
+              onMouseUp={handleMicRelease}
+              onMouseLeave={handleMicCancel}
+              onTouchStart={handleMicPress}
+              onTouchEnd={handleMicRelease}
+              onTouchCancel={handleMicCancel}
+              aria-label="Grabar nota de voz"
               disabled={isSubmitting}
             >
               <Mic className="h-5 w-5" />
+            </button>
+            {/* Botón cámara para nota de video */}
+            <button
+              type="button"
+              className={`p-2 rounded-full ${showVideoRecorder ? 'bg-blue-200 text-blue-600' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              onMouseDown={handleCameraPress}
+              onMouseUp={handleCameraRelease}
+              onMouseLeave={handleCameraCancel}
+              onTouchStart={handleCameraPress}
+              onTouchEnd={handleCameraRelease}
+              onTouchCancel={handleCameraCancel}
+              aria-label="Grabar nota de video"
+              disabled={isSubmitting}
+            >
+              <Camera className="h-5 w-5" />
             </button>
           </div>
           <button 
@@ -304,6 +268,38 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
             {isSubmitting ? 'Publicando...' : 'Post'}
           </button>
         </div>
+        {/* Subida de archivos con previsualización y progreso, solo si showFileUpload */}
+        {showFileUpload && (
+          <div className="px-4 pb-2">
+            <FileUploadWithPreview onFileSelect={handleFileSelect} />
+          </div>
+        )}
+        {/* Grabación de voz controlada por ref, solo si showAudioRecorder */}
+        {showAudioRecorder && (
+          <div className="px-4 pb-2">
+            <AudioRecorder ref={audioRecorderRef} onAudioReady={handleAudioReady} />
+            {isRecording && (
+              <div className="text-red-600 font-bold mt-2 flex items-center gap-2">
+                <Mic className="h-4 w-4 animate-pulse" /> Grabando... Suelta para enviar, desliza fuera para cancelar
+              </div>
+            )}
+          </div>
+        )}
+        {/* Grabación de video controlada por ref, solo si showVideoRecorder */}
+        {showVideoRecorder && (
+          <div className="px-4 pb-2">
+            <VideoRecorder ref={videoRecorderRef} onVideoReady={handleVideoReady} />
+            <div className="text-blue-600 font-bold mt-2 flex items-center gap-2">
+              <Camera className="h-4 w-4 animate-pulse" /> Grabando video... Suelta para enviar, desliza fuera para cancelar
+            </div>
+          </div>
+        )}
+        {/* Selector de emoji */}
+        {showEmojiPicker && (
+          <div className="absolute z-50 mt-2">
+            <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+          </div>
+        )}
       </form>
     </div>
   );

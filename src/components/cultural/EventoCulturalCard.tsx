@@ -6,7 +6,8 @@ import {
   Edit, 
   MessageCircle, 
   Send,
-  Trash 
+  Trash,
+  Share2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -54,7 +55,7 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
     // Cargar comentarios y usuarios
     const fetchComments = async () => {
       const { data } = await supabase
-        .from('comentarios')
+        .from('comentarios_evento')
         .select('*')
         .eq('evento_id', event.id)
         .order('creado_en', { ascending: true });
@@ -103,8 +104,13 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
     e.preventDefault();
     if (!newComment.trim() || !user) return;
     try {
-      const data = await addEventComment(event.id, user.id, newComment.trim());
-      if (!data) return;
+      // Insertar en comentarios_evento
+      const { data, error } = await supabase
+        .from('comentarios_evento')
+        .insert({ evento_id: event.id, autor_id: user.id, contenido: newComment.trim() })
+        .select()
+        .single();
+      if (error) throw error;
       // Obtener datos de usuario para el nuevo comentario
       let userData = commentUsers[user.id];
       if (!userData) {
@@ -130,6 +136,19 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
       // Opcional: recargar eventos o emitir callback
     } catch (error) {
       toast.error('Error al eliminar el evento');
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: event.titulo,
+        text: event.descripcion,
+        url: window.location.origin + '/eventos/' + event.id
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.origin + '/eventos/' + event.id);
+      toast.success('¡Enlace copiado!');
     }
   };
 
@@ -171,6 +190,13 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
                 </button>
               </>
             )}
+            <button
+              onClick={handleShare}
+              className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+              title="Compartir evento"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
           </div>
         </div>
 

@@ -4,6 +4,9 @@ import { Post, formatPostDate, getUserById, usePostStore } from '../../store/pos
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
+import { Link } from 'react-router-dom';
 
 interface PostCardProps {
   post: Post;
@@ -18,9 +21,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [commentUsers, setCommentUsers] = useState<Record<string, any>>({});
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingComments, setLoadingComments] = useState(true);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const { user } = useAuthStore();
   const { toggleLike, addComment, toggleFavorite } = usePostStore();
+  const commentInputRef = React.useRef<HTMLInputElement>(null);
 
   // Cargar usuario del post
   useEffect(() => {
@@ -84,8 +89,16 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   };
   
   const handleShare = () => {
-    // In a real app, implement sharing functionality
-    alert('Sharing functionality would be implemented here');
+    if (navigator.share) {
+      navigator.share({
+        title: post.content?.slice(0, 60) || 'Post de Red Viento Sur',
+        text: post.content,
+        url: window.location.origin + '/posts/' + post.id
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.origin + '/posts/' + post.id);
+      toast.success('¡Enlace copiado!');
+    }
   };
 
   const handleDelete = async () => {
@@ -93,7 +106,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     if (!window.confirm('¿Estás seguro de eliminar este post?')) return;
     try {
       const { error } = await supabase
-        .from('publicaciones')
+        .from('posts') // Cambiado de 'publicaciones' a 'posts'
         .delete()
         .eq('id', post.id);
       if (error) throw error;
@@ -103,13 +116,34 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       toast.error('Error al eliminar el post');
     }
   };
+
+  const handleEmojiSelect = (emoji: any) => {
+    // Insertar emoji en la posición actual del cursor
+    if (commentInputRef.current) {
+      const input = commentInputRef.current;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const newValue =
+        commentText.slice(0, start) +
+        (emoji.native || emoji.skins?.[0]?.native || '') +
+        commentText.slice(end);
+      setCommentText(newValue);
+      setTimeout(() => {
+        input.focus();
+        input.setSelectionRange(start + 2, start + 2); // 2 = longitud típica de emoji
+      }, 0);
+    } else {
+      setCommentText(commentText + (emoji.native || emoji.skins?.[0]?.native || ''));
+    }
+    setShowEmojiPicker(false);
+  };
   
   return (
     <article className="feed-item">
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="avatar">
+          <Link to={postUser?.username ? `/profile/${postUser.username}` : '#'} className="avatar">
             {loadingUser ? (
               <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
             ) : (
@@ -119,10 +153,16 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 className="avatar-img"
               />
             )}
-          </div>
+          </Link>
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">
-              {loadingUser ? <span className="bg-gray-200 rounded w-20 h-4 inline-block animate-pulse" /> : postUser?.displayName || 'Usuario'}
+              {loadingUser ? (
+                <span className="bg-gray-200 rounded w-20 h-4 inline-block animate-pulse" />
+              ) : (
+                <Link to={postUser?.username ? `/profile/${postUser.username}` : '#'} className="hover:underline">
+                  {postUser?.displayName || 'Usuario'}
+                </Link>
+              )}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {formatPostDate(post.createdAt)}
@@ -222,6 +262,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <button 
             onClick={handleShare}
             className="flex items-center group"
+            title="Compartir"
           >
             <Share2 className="h-5 w-5 text-gray-600 dark:text-gray-400 group-hover:text-primary-500" />
           </button>
@@ -290,7 +331,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           )}
           
           {user && (
-            <form onSubmit={handleComment} className="flex items-center space-x-2">
+            <form onSubmit={handleComment} className="flex items-center space-x-2 relative">
               <div className="avatar w-8 h-8">
                 <img 
                   src={user.avatar} 
@@ -299,19 +340,34 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 />
               </div>
               <input
+                ref={commentInputRef}
                 type="text"
-                placeholder="Add a comment..."
+                placeholder="Añade un comentario..."
                 className="flex-1 bg-white dark:bg-gray-900 rounded-full px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
               />
+              <button
+                type="button"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                aria-label="Insertar emoji"
+                tabIndex={-1}
+              >
+                <span role="img" aria-label="emoji">😊</span>
+              </button>
               <button 
                 type="submit"
                 disabled={!commentText.trim()}
                 className="text-sm font-medium text-primary-600 dark:text-primary-400 disabled:opacity-50"
               >
-                Post
+                Publicar
               </button>
+              {showEmojiPicker && (
+                <div className="absolute z-50 bottom-12 right-0">
+                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+                </div>
+              )}
             </form>
           )}
         </div>

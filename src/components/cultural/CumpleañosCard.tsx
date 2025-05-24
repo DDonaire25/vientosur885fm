@@ -1,7 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Cake, Mail, Phone, Award } from 'lucide-react';
+import { Cake, Mail, Phone, Award, Share2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -45,6 +45,19 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
     }
   };
 
+  // Handler para compartir cumpleaños
+  const handleShare = () => {
+    const url = window.location.origin + '/cumpleanos/' + birthday.id;
+    const title = `Cumpleaños de ${birthday.nombre}`;
+    const text = `¡Feliz cumpleaños a ${birthday.nombre}! (${birthday.rol})`;
+    if (navigator.share) {
+      navigator.share({ title, text, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('¡Enlace copiado!');
+    }
+  };
+
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${
       isToday(birthday.fecha_nacimiento) ? 'ring-2 ring-pink-500' : ''
@@ -59,9 +72,19 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
               {birthday.rol}
             </p>
           </div>
-          <Cake className={`h-6 w-6 ${
-            isToday(birthday.fecha_nacimiento) ? 'text-pink-500' : 'text-gray-400'
-          }`} />
+          <div className="flex items-center gap-2">
+            <Cake className={`h-6 w-6 ${
+              isToday(birthday.fecha_nacimiento) ? 'text-pink-500' : 'text-gray-400'
+            }`} />
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Compartir cumpleaños"
+              aria-label="Compartir cumpleaños"
+            >
+              <Share2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {birthday.imagen_url && (

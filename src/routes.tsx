@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import { useAuthStore } from './store/authStore';
+import ProfilePageWithId from './pages/ProfilePageWithId';
 
 // Lazy loaded components
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -53,6 +54,7 @@ const AppRoutes = () => {
           <Route path="create" element={<CreatePage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile/:userId" element={<ProfilePageWithId />} />
           <Route path="blogs" element={<BlogsPage />} />
           <Route path="blogs/new" element={<NewBlogPage />} />
           <Route path="stories" element={<StoriesPage />} />

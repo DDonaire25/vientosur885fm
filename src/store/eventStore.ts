@@ -242,7 +242,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   addComment: async (eventId, userId, content) => {
     try {
       const { data, error } = await supabase
-        .from('comentarios')
+        .from('comentarios_evento')
         .insert({ evento_id: eventId, autor_id: userId, contenido: content })
         .select()
         .single();

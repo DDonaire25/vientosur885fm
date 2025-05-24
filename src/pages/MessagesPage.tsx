@@ -3,6 +3,8 @@ import { Search, Plus, Phone, Video, Send, Image, Smile, MoreVertical, ChevronLe
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuthStore } from '../store/authStore';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 
 interface Message {
   id: string;
@@ -93,8 +95,10 @@ const MessagesPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   const { user } = useAuthStore();
+  const messageInputRef = React.useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     // Simular carga de conversaciones
@@ -143,6 +147,26 @@ const MessagesPage: React.FC = () => {
           : conv
       )
     );
+  };
+  
+  const handleEmojiSelect = (emoji: any) => {
+    if (messageInputRef.current) {
+      const input = messageInputRef.current;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const newValue =
+        newMessage.slice(0, start) +
+        (emoji.native || emoji.skins?.[0]?.native || '') +
+        newMessage.slice(end);
+      setNewMessage(newValue);
+      setTimeout(() => {
+        input.focus();
+        input.setSelectionRange(start + 2, start + 2);
+      }, 0);
+    } else {
+      setNewMessage(newMessage + (emoji.native || emoji.skins?.[0]?.native || ''));
+    }
+    setShowEmojiPicker(false);
   };
   
   const formatMessageTime = (timestamp: string) => {
@@ -342,29 +366,30 @@ const MessagesPage: React.FC = () => {
           
           {/* Message Input */}
           <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3">
-            <form onSubmit={handleSendMessage} className="flex items-center">
+            <form onSubmit={handleSendMessage} className="flex items-center relative">
               <button 
                 type="button"
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 mr-2"
               >
                 <Image className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </button>
-              
               <input 
+                ref={messageInputRef}
                 type="text"
                 placeholder="Escribe un mensaje..."
                 className="flex-1 input"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
               />
-              
               <button
                 type="button"
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 mx-2"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                aria-label="Insertar emoji"
+                tabIndex={-1}
               >
                 <Smile className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </button>
-              
               <button
                 type="submit"
                 disabled={!newMessage.trim()}
@@ -372,6 +397,11 @@ const MessagesPage: React.FC = () => {
               >
                 <Send className="h-5 w-5" />
               </button>
+              {showEmojiPicker && (
+                <div className="absolute z-50 bottom-12 right-0">
+                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+                </div>
+              )}
             </form>
           </div>
         </div>
