@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import AudioRecorder from '../components/ui/AudioRecorder';
 import VideoRecorder from '../components/ui/VideoRecorder';
+import { Link } from 'react-router-dom';
+import { MoreVertical, Search, Smile } from 'lucide-react';
 
 const tabs = ['Primario', 'General', 'Solicitudes'];
 
@@ -21,6 +23,11 @@ const DirectMessagesPage: React.FC = () => {
   const [sticker, setSticker] = useState<string | null>(null);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Cargar conversaciones
   useEffect(() => {
@@ -87,6 +94,18 @@ const DirectMessagesPage: React.FC = () => {
     fetchMessages();
   }, [user, selectedConversation]);
 
+  // Buscar usuarios
+  const handleUserSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchLoading(true);
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id, nombre_usuario, nombre_completo, avatar_url')
+      .ilike('nombre_usuario', `%${searchQuery}%`);
+    setSearchResults(data || []);
+    setSearchLoading(false);
+  };
+
   // Enviar mensaje
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,12 +164,55 @@ const DirectMessagesPage: React.FC = () => {
           ))}
         </div>
         <div className="px-4 mb-2">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            className="w-full px-3 py-2 rounded bg-gray-100 focus:outline-none"
-            disabled={loadingConvs}
-          />
+          <form onSubmit={handleUserSearch} className="flex gap-2 mb-2">
+            <input
+              type="text"
+              placeholder="Buscar usuario..."
+              className="w-full px-3 py-2 rounded bg-gray-100 focus:outline-none"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              disabled={loadingConvs}
+            />
+            <button type="submit" className="btn btn-primary flex items-center justify-center" title="Buscar">
+              <Search className="h-5 w-5" />
+            </button>
+          </form>
+          {searchLoading && <div>Buscando...</div>}
+          <div className="space-y-2">
+            {searchResults.map(user => (
+              <div
+                key={user.id}
+                className="block cursor-pointer"
+                tabIndex={0}
+                aria-label={`Abrir chat con ${user.nombre_completo || user.nombre_usuario}`}
+                onClick={() => {
+                  setSelectedConversation({
+                    user_id: user.id,
+                    username: user.nombre_usuario,
+                    avatar: user.avatar_url || '/default-avatar.png',
+                    last_message: '',
+                    last_time: '',
+                    unread_count: 0,
+                  });
+                  setSearchResults([]);
+                  setSearchQuery('');
+                }}
+              >
+                <div className="flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <img
+                    src={user.avatar_url || '/default-avatar.png'}
+                    alt={user.nombre_completo || user.nombre_usuario}
+                    className="h-9 w-9 rounded-full mr-3"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900 dark:text-white">{user.nombre_completo}</span>
+                    <span className="text-xs text-gray-500 ml-2">@{user.nombre_usuario}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!searchLoading && searchResults.length === 0 && searchQuery && <div>No se encontraron usuarios.</div>}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {loadingConvs ? (
@@ -217,17 +279,44 @@ const DirectMessagesPage: React.FC = () => {
               className="flex items-center p-4 border-t bg-white gap-2"
               onSubmit={handleSendMessage}
             >
-              <label htmlFor="file-input" className="cursor-pointer p-2" title="Adjuntar archivo">📎</label>
-              <input
-                id="file-input"
-                type="file"
-                className="hidden"
-                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-              />
-              <button type="button" className="p-2" title="Grabar audio" onClick={() => setShowAudioRecorder(v => !v)}>🎤</button>
-              <button type="button" className="p-2" title="Grabar video" onClick={() => setShowVideoRecorder(v => !v)}>📹</button>
-              <button type="button" className="p-2" title="Sticker like" onClick={() => setSticker('/stickers/like.png')}>👍</button>
-              <button type="button" className="p-2" title="Sticker love" onClick={() => setSticker('/stickers/love.png')}>❤️</button>
+              {/* Menú de acciones */}
+              <div className="relative">
+                <button
+                  type="button"
+                  className="p-2"
+                  title="Más acciones"
+                  onClick={() => setShowMenu(v => !v)}
+                >
+                  <MoreVertical className="h-6 w-6 text-gray-500" />
+                </button>
+                {showMenu && (
+                  <div className="absolute left-0 bottom-12 z-10 mb-2 w-44 bg-white border rounded shadow-lg flex flex-col animate-fade-in-up">
+                    <label htmlFor="file-input" className="cursor-pointer px-4 py-2 hover:bg-gray-100" title="Adjuntar archivo" onClick={() => setShowMenu(false)}>📎 Adjuntar archivo</label>
+                    <button type="button" className="px-4 py-2 text-left hover:bg-gray-100" title="Grabar audio" onClick={() => { setShowAudioRecorder(v => !v); setShowMenu(false); }}>🎤 Grabar audio</button>
+                    <button type="button" className="px-4 py-2 text-left hover:bg-gray-100" title="Grabar video" onClick={() => { setShowVideoRecorder(v => !v); setShowMenu(false); }}>📹 Grabar video</button>
+                    <button type="button" className="px-4 py-2 text-left hover:bg-gray-100" title="Sticker like" onClick={() => { setSticker('/stickers/like.png'); setShowMenu(false); }}>👍 Enviar sticker</button>
+                    <button type="button" className="px-4 py-2 text-left hover:bg-gray-100" title="Sticker love" onClick={() => { setSticker('/stickers/love.png'); setShowMenu(false); }}>❤️ Enviar sticker</button>
+                    <button type="button" className="px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2" title="Emojis" onClick={() => { setShowEmojiPicker(v => !v); }}>
+                      <Smile className="h-5 w-5" /> <span>Emojis</span>
+                    </button>
+                  </div>
+                )}
+                {/* Emoji picker hacia arriba */}
+                {showEmojiPicker && (
+                  <div className="absolute left-0 bottom-44 z-20 mb-2 w-60 bg-white border rounded shadow-lg animate-fade-in-up p-2 flex flex-wrap gap-1" style={{maxHeight:'180px',overflowY:'auto'}}>
+                    {["😀","😂","😍","😎","😭","😡","👍","🙏","🎉","❤️","🔥","🥳","😅","😇","😜","🤔","😱","😏","😬","😴","🤩","😢","😆","😋","😃"].map(e=>(
+                      <button key={e} className="text-2xl p-1 hover:bg-gray-100 rounded" type="button" onClick={()=>{setMessageInput(m=>m+e);setShowEmojiPicker(false);setShowMenu(false);}}>{e}</button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  id="file-input"
+                  type="file"
+                  className="hidden"
+                  onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+                />
+              </div>
+              {/* Campo de texto y enviar */}
               <input
                 type="text"
                 className="flex-1 px-4 py-2 rounded-full border bg-gray-100 focus:outline-none"
