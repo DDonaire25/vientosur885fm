@@ -5,14 +5,14 @@ import EditProfileForm from '../components/profile/EditProfileForm';
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const { userId } = useParams();
+  const { userId, username } = useParams();
 
   return (
     <div>
       {isEditing ? (
         <EditProfileForm onCancel={() => setIsEditing(false)} />
       ) : (
-        <ProfileView onEdit={() => setIsEditing(true)} userId={userId} />
+        <ProfileView onEdit={() => setIsEditing(true)} userId={userId} username={username} />
       )}
     </div>
   );

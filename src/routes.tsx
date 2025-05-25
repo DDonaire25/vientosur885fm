@@ -19,8 +19,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const BlogsPage = lazy(() => import('./pages/BlogsPage'));
 const StoriesPage = lazy(() => import('./pages/StoriesPage'));
 const StreamsPage = lazy(() => import('./pages/StreamsPage'));
-const MessagesPage = lazy(() => import('./pages/MessagesPage'));
 const NewBlogPage = lazy(() => import('./pages/NewBlogPage'));
+const UserSearch = lazy(() => import('./components/profile/UserSearch').then(m => ({ default: m.UserSearch })));
+const DirectMessagesPage = lazy(() => import('./pages/DirectMessagesPage'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -54,12 +55,14 @@ const AppRoutes = () => {
           <Route path="create" element={<CreatePage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="profile/:userId" element={<ProfilePageWithId />} />
+          <Route path="/profile/:username" element={<ProfilePageWithId />} />
+          <Route path="/profile/id/:userId" element={<ProfilePageWithId />} />
           <Route path="blogs" element={<BlogsPage />} />
           <Route path="blogs/new" element={<NewBlogPage />} />
           <Route path="stories" element={<StoriesPage />} />
           <Route path="streams" element={<StreamsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
+          <Route path="/buscar-usuarios" element={<Suspense fallback={<LoadingSpinner />}><div style={{padding: 24}}><UserSearch /></div></Suspense>} />
+          <Route path="/direct-messages" element={<DirectMessagesPage />} />
         </Route>
         
         <Route path="*" element={<NotFoundPage />} />

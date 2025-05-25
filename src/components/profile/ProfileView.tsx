@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Settings, LogOut, Camera, MessageCircle, BookOpen, Users, ExternalLink, Heart, User as UserIcon } from 'lucide-react';
+import { Edit2, Settings, LogOut, Camera, MessageCircle, BookOpen, Users, ExternalLink, Heart, User as UserIcon, MoreVertical } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { AddPortfolioItemForm } from './AddPortfolioItemForm';
 import { AddGalleryItemForm } from './AddGalleryItemForm';
+import UserQuickActions from './UserQuickActions';
 
 interface ProfileViewProps {
-  onEdit: () => void;
+  onEdit?: () => void;
+  userId?: string;
+  username?: string;
 }
 
 interface PortfolioItem {
@@ -36,8 +39,9 @@ interface Follower {
   avatar: string;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
-  const { user, logout } = useAuthStore();
+const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) => {
+  const { user: currentUser, logout } = useAuthStore();
+  const [profileUser, setProfileUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'gallery' | 'followers' | 'about'>('portfolio');
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
@@ -47,74 +51,117 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
   const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
   const [showAddGalleryModal, setShowAddGalleryModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showSubMenu, setShowSubMenu] = useState<string | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
+  // Cerrar menú al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+        setShowSubMenu(null);
+      }
+    }
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  // Cargar datos del usuario del perfil (propio u otro)
   const loadUserData = async () => {
-    if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
-      // Cargar portafolio
+      let userData = null;
+      if (userId) {
+        const { data } = await supabase.from('usuarios').select('*').eq('id', userId).single();
+        userData = data;
+      } else if (username) {
+        const { data } = await supabase.from('usuarios').select('*').eq('nombre_usuario', username).single();
+        userData = data;
+      } else if (currentUser) {
+        userData = currentUser;
+      }
+      if (!userData) throw new Error('Usuario no encontrado');
+      setProfileUser(userData);
+
+      // Portfolio
       const { data: portfolioData } = await supabase
         .from('portfolio')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userData.id)
         .order('created_at', { ascending: false });
+      setPortfolio(portfolioData || []);
 
-      if (portfolioData) {
-        setPortfolio(portfolioData);
-      }
-
-      // Cargar galería
+      // Galería
       const { data: galleryData } = await supabase
         .from('gallery')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userData.id)
         .order('created_at', { ascending: false });
+      setGallery(galleryData || []);
 
-      if (galleryData) {
-        setGallery(galleryData);
-      }
+      // Seguidores
+      const { data: followersData } = await supabase.rpc('get_user_followers', { user_id: userData.id });
+      setFollowers((followersData || []).map((f: any) => ({
+        id: f.id,
+        username: f.nombre_usuario,
+        displayName: f.nombre_completo,
+        avatar: f.avatar_url
+      })));
 
-      // Cargar seguidores
-      const { data: followersData } = await supabase
-        .rpc('get_user_followers', { user_id: user.id });
+      // Siguiendo
+      const { data: followingData } = await supabase.rpc('get_user_following', { user_id: userData.id });
+      setFollowing((followingData || []).map((f: any) => ({
+        id: f.id,
+        username: f.nombre_usuario,
+        displayName: f.nombre_completo,
+        avatar: f.avatar_url
+      })));
 
-      if (followersData) {
-        setFollowers(followersData.map((f: any) => ({
-          id: f.id,
-          username: f.nombre_usuario,
-          displayName: f.nombre_completo,
-          avatar: f.avatar_url
-        })));
-      }
-
-      // Cargar siguiendo
-      const { data: followingData } = await supabase
-        .rpc('get_user_following', { user_id: user.id });
-
-      if (followingData) {
-        setFollowing(followingData.map((f: any) => ({
-          id: f.id,
-          username: f.nombre_usuario,
-          displayName: f.nombre_completo,
-          avatar: f.avatar_url
-        })));
+      // ¿El usuario actual sigue a este perfil?
+      if (currentUser && userData.id !== currentUser.id) {
+        const { data: followRow } = await supabase
+          .from('followers')
+          .select('*')
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', userData.id)
+          .single();
+        setIsFollowing(!!followRow);
+      } else {
+        setIsFollowing(false);
       }
     } catch (error: any) {
       setError('Error cargando el perfil. Intenta de nuevo.');
-      console.error('Error loading profile data:', error);
+      setProfileUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      loadUserData();
-    } else {
-      setIsLoading(false);
-    }
-  }, [user]);
+    loadUserData();
+    // eslint-disable-next-line
+  }, [userId, username, currentUser]);
+
+  // Funciones seguir/dejar de seguir
+  const handleFollow = async () => {
+    if (!currentUser || !profileUser) return;
+    await supabase.from('followers').insert({ follower_id: currentUser.id, following_id: profileUser.id });
+    setIsFollowing(true);
+    loadUserData();
+  };
+  const handleUnfollow = async () => {
+    if (!currentUser || !profileUser) return;
+    await supabase.from('followers').delete().eq('follower_id', currentUser.id).eq('following_id', profileUser.id);
+    setIsFollowing(false);
+    loadUserData();
+  };
 
   if (isLoading) {
     return (
@@ -123,15 +170,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
       </div>
     );
   }
-
-  if (!user) {
+  if (!profileUser) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-lg text-gray-500 dark:text-gray-400">No se ha encontrado un usuario autenticado.<br />Por favor, inicia sesión para ver tu perfil.</p>
+        <p className="text-lg text-gray-500 dark:text-gray-400">No se ha encontrado el usuario.<br />Verifica la URL o busca otro usuario.</p>
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
@@ -165,14 +210,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
                 </div>
               </motion.div>
             ))}
-            {user && (
+            {(!userId || userId === currentUser?.id) && (
               <motion.button
                 onClick={() => setShowAddPortfolioModal(true)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-600"
+                className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Agregar obra al portfolio"
               >
-                <span className="text-3xl">+</span>
+                <span className="text-3xl" aria-hidden>+</span>
               </motion.button>
             )}
           </div>
@@ -200,12 +246,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
                 </p>
               </motion.div>
             ))}
-            {user && (
-              <Link to="/gallery/new" className="block">
+            {(!userId || userId === currentUser?.id) && (
+              <Link to="/gallery/new" className="block" tabIndex={0} aria-label="Agregar nueva exposición">
                 <motion.div
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.2 }}
-                  className="card p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 text-center"
+                  className="card p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 text-center focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <span className="text-gray-400 dark:text-gray-600">+ Agregar nueva exposición</span>
                 </motion.div>
@@ -225,38 +271,38 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
               </Link>
             </div>
             <div className="space-y-3">
-              {followers.map(follower => (
-                <motion.div 
-                  key={follower.id}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  whileHover={{ x: 2 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Link to={`/profile/${follower.username}`} className="flex items-center">
-                    <div className="avatar h-10 w-10 mr-3">
-                      <img 
-                        src={follower.avatar} 
-                        alt={follower.displayName}
-                        className="avatar-img"
-                      />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">
-                        {follower.displayName}
-                      </h4>
-                      <p className="text-xs text-gray-500">@{follower.username}</p>
-                    </div>
-                  </Link>
-                  <div className="flex space-x-2">
-                    <button className="p-2 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
-                      <Heart className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                      <MessageCircle className="h-4 w-4" />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+              {followers.map(follower => {
+                const isFollowingUser = following.some(f => f.id === follower.id);
+                return (
+                  <motion.div 
+                    key={follower.id}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    whileHover={{ x: 2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Link to={`/profile/${follower.username}`} className="flex items-center">
+                      <div className="avatar h-10 w-10 mr-3">
+                        <img 
+                          src={follower.avatar} 
+                          alt={follower.displayName}
+                          className="avatar-img"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">
+                          {follower.displayName}
+                        </h4>
+                        <p className="text-xs text-gray-500">@{follower.username}</p>
+                      </div>
+                    </Link>
+                    <UserQuickActions
+                      user={follower}
+                      initialIsFollowing={isFollowingUser}
+                      onFollowChange={() => loadUserData()}
+                    />
+                  </motion.div>
+                );
+              })}
               <Link to="/discover" className="block">
                 <motion.div
                   whileHover={{ x: 2 }}
@@ -277,15 +323,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
             <div className="card">
               <h3 className="font-medium mb-2">Biografía</h3>
               <p className="text-gray-700 dark:text-gray-300">
-                {user.bio || 'No hay biografía disponible.'}
+                {profileUser.bio || 'No hay biografía disponible.'}
               </p>
             </div>
             
-            {user.disciplines && user.disciplines.length > 0 && (
+            {profileUser.disciplines && profileUser.disciplines.length > 0 && (
               <div className="card">
                 <h3 className="font-medium mb-2">Disciplinas</h3>
                 <div className="flex flex-wrap gap-2">
-                  {user.disciplines.map(tag => (
+                  {profileUser.disciplines.map((tag: string) => (
                     <span 
                       key={tag}
                       className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-full text-xs"
@@ -297,11 +343,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
               </div>
             )}
             
-            {user.social_links && user.social_links.length > 0 && (
+            {profileUser.social_links && profileUser.social_links.length > 0 && (
               <div className="card">
                 <h3 className="font-medium mb-2">Redes Sociales</h3>
                 <div className="space-y-2">
-                  {user.social_links.map(link => (
+                  {profileUser.social_links.map((link: { name: string; url: string }) => (
                     <a 
                       key={link.name}
                       href={link.url}
@@ -325,54 +371,149 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit }) => {
 
   return (
     <div className="space-y-6 pb-6">
+      {/* Botón menú superior */}
+      <div className="absolute top-4 right-4 z-30">
+        <button
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none"
+          aria-label="Abrir menú"
+          onClick={() => setShowMenu((v) => !v)}
+        >
+          <MoreVertical className="h-6 w-6" />
+        </button>
+        {showMenu && (
+          <div ref={menuRef} className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {/* MENSAJES */}
+              <li>
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800 flex items-center gap-2"
+                  onClick={() => setShowSubMenu(showSubMenu === 'mensajes' ? null : 'mensajes')}
+                  aria-haspopup="true"
+                  aria-expanded={showSubMenu === 'mensajes'}
+                >
+                  📩 Mensajes
+                  <span className="ml-auto">›</span>
+                </button>
+                {showSubMenu === 'mensajes' && (
+                  <ul className="ml-4 mt-1 space-y-1">
+                    <li>
+                      <Link to="/online-users" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Usuarios en línea</Link>
+                    </li>
+                    <li>
+                      <Link to="/messages" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Mensaje/Chat</Link>
+                    </li>
+                  </ul>
+                )}
+              </li>
+              {/* MÁS OPCIONES */}
+              <li>
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800 flex items-center gap-2"
+                  onClick={() => setShowSubMenu(showSubMenu === 'mas' ? null : 'mas')}
+                  aria-haspopup="true"
+                  aria-expanded={showSubMenu === 'mas'}
+                >
+                  ➕ Más opciones
+                  <span className="ml-auto">›</span>
+                </button>
+                {showSubMenu === 'mas' && (
+                  <ul className="ml-4 mt-1 space-y-1">
+                    <li><Link to="/blogs" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Blogs</Link></li>
+                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Eventos culturales</Link></li>
+                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Tareas</Link></li>
+                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Cumpleaños</Link></li>
+                  </ul>
+                )}
+              </li>
+              {/* CONFIGURACIÓN Y CERRAR SESIÓN */}
+              <li>
+                <Link to="#" className="block px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800">Configuración</Link>
+              </li>
+              <li>
+                <button
+                  onClick={logout}
+                  className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-gray-800 text-red-600 dark:text-red-400"
+                >
+                  Cerrar sesión
+                </button>
+              </li>
+            </ul>
+          </div>
+        )}
+      </div>
       {/* Profile Header */}
       <div className="relative">
         <div className="h-32 bg-gradient-to-r from-primary-600 to-secondary-500 rounded-t-xl">
-          {user.cover_image && (
+          {profileUser.cover_image && (
             <img 
-              src={user.cover_image} 
+              src={profileUser.cover_image} 
               alt="Cover" 
               className="w-full h-full object-cover rounded-t-xl"
             />
           )}
         </div>
         <div className="absolute left-0 right-0 -bottom-16 flex justify-center">
-          <div className="avatar h-32 w-32 ring-4 ring-white dark:ring-gray-900">
-            <img 
-              src={user.avatar || '/default-avatar.png'} 
-              alt={user.displayName || user.username || 'Usuario'} 
-              className="avatar-img"
-            />
-          </div>
+          <Link to={`/profile/${profileUser.username}`}> {/* Avatar enlazado */}
+            <div className="avatar h-32 w-32 ring-4 ring-white dark:ring-gray-900">
+              <img 
+                src={profileUser.avatar || '/default-avatar.png'} 
+                alt={profileUser.displayName || profileUser.username || 'Usuario'} 
+                className="avatar-img"
+              />
+            </div>
+          </Link>
         </div>
       </div>
       
       {/* Profile Actions */}
       <div className="flex justify-between pt-20 px-4">
-        <Link to="/messages" className="btn btn-ghost text-sm flex items-center">
-          <MessageCircle className="h-4 w-4 mr-1" />
-          Mensaje
-        </Link>
-        
-        <button 
-          onClick={onEdit}
-          className="btn btn-ghost text-sm flex items-center"
-        >
-          <Edit2 className="h-4 w-4 mr-1" />
-          Editar
-        </button>
+        {currentUser && currentUser.id !== profileUser.id && (
+          <>
+            {isFollowing ? (
+              <button
+                onClick={handleUnfollow}
+                className="btn btn-ghost text-sm flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Dejar de seguir a este usuario"
+              >
+                Dejar de seguir
+              </button>
+            ) : (
+              <button
+                onClick={handleFollow}
+                className="btn btn-ghost text-sm flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Seguir a este usuario"
+              >
+                Seguir
+              </button>
+            )}
+            <Link
+              to="/direct-messages"
+              className="btn btn-ghost text-sm flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label={`Enviar mensaje a ${profileUser.displayName || profileUser.username}`}
+            >
+              <MessageCircle className="h-4 w-4 mr-1" />Mensaje
+            </Link>
+          </>
+        )}
+        {onEdit && currentUser && currentUser.id === profileUser.id && (
+          <button onClick={onEdit} className="btn btn-ghost text-sm flex items-center">
+            <Edit2 className="h-4 w-4 mr-1" />Editar
+          </button>
+        )}
       </div>
       
       {/* Profile Info */}
       <div className="text-center px-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {user.displayName || user.username || 'Usuario'}
-        </h1>
-        <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">
-          @{user.username}
-        </p>
+        <Link to={`/profile/${profileUser.username}`} tabIndex={0} aria-label={`Ver perfil de ${profileUser.displayName || profileUser.username}`}>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {profileUser.displayName || profileUser.username || 'Usuario'}
+          </h1>
+          <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">
+            @{profileUser.username}
+          </p>
+        </Link>
         <p className="text-gray-600 dark:text-gray-300 mt-3 max-w-md mx-auto">
-          {user.bio || 'No hay biografía disponible.'}
+          {profileUser.bio || 'No hay biografía disponible.'}
         </p>
         
         <div className="flex justify-center mt-4 space-x-6">
