@@ -453,14 +453,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
           )}
         </div>
         <div className="absolute left-0 right-0 -bottom-16 flex justify-center">
-          <Link to={`/profile/${profileUser.username}`}> {/* Avatar enlazado */}
-            <div className="avatar h-32 w-32 ring-4 ring-white dark:ring-gray-900">
-              <img 
-                src={profileUser.avatar || '/default-avatar.png'} 
-                alt={profileUser.displayName || profileUser.username || 'Usuario'} 
-                className="avatar-img"
-              />
-            </div>
+          <Link to={`/profile/${profileUser.nombre_usuario}`}>
+            <img
+              src={profileUser.avatar_url || '/default-avatar.png'}
+              alt={profileUser.nombre_completo || profileUser.nombre_usuario}
+              className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-900 object-cover shadow-lg"
+            />
           </Link>
         </div>
       </div>
@@ -504,12 +502,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
       
       {/* Profile Info */}
       <div className="text-center px-4">
-        <Link to={`/profile/${profileUser.username}`} tabIndex={0} aria-label={`Ver perfil de ${profileUser.displayName || profileUser.username}`}>
+        <Link to={`/profile/${profileUser.nombre_usuario}`} tabIndex={0} aria-label={`Ver perfil de ${profileUser.nombre_completo || profileUser.nombre_usuario}`}>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {profileUser.displayName || profileUser.username || 'Usuario'}
+            {profileUser.nombre_completo || profileUser.nombre_usuario}
           </h1>
           <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">
-            @{profileUser.username}
+            @{profileUser.nombre_usuario}
           </p>
         </Link>
         <p className="text-gray-600 dark:text-gray-300 mt-3 max-w-md mx-auto">

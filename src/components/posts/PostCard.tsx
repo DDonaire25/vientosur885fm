@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Bookmark, Share2, MoreHorizontal, Trash } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { Post, formatPostDate, getUserById, usePostStore } from '../../store/postStore';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
@@ -138,6 +138,10 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     setShowEmojiPicker(false);
   };
   
+  if (!post || !postUser) {
+    return null;
+  }
+  
   return (
     <article className="feed-item">
       {/* Post Header */}
@@ -175,7 +179,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           </button>
           {user && user.id === post.userId && (
             <button onClick={handleDelete} className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900">
-              <Trash className="h-5 w-5 text-red-500" />
+              {/* Puedes volver a importar Trash si lo deseas */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m5 0H6" /></svg>
             </button>
           )}
         </div>

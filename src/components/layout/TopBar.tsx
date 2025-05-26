@@ -167,6 +167,7 @@ const TopBar: React.FC = () => {
                           <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Eventos culturales</Link></li>
                           <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Tareas</Link></li>
                           <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Cumpleaños</Link></li>
+                          {/* <li><Link to="/agenda" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded font-semibold text-primary-700 dark:text-primary-300">Agenda</Link></li> */}
                         </ul>
                       )}
                     </li>

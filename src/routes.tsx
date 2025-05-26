@@ -22,6 +22,7 @@ const StreamsPage = lazy(() => import('./pages/StreamsPage'));
 const NewBlogPage = lazy(() => import('./pages/NewBlogPage'));
 const UserSearch = lazy(() => import('./components/profile/UserSearch').then(m => ({ default: m.UserSearch })));
 const DirectMessagesPage = lazy(() => import('./pages/DirectMessagesPage'));
+// const AgendaPage = lazy(() => import('./pages/AgendaPage'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -61,6 +62,7 @@ const AppRoutes = () => {
           <Route path="blogs/new" element={<NewBlogPage />} />
           <Route path="stories" element={<StoriesPage />} />
           <Route path="streams" element={<StreamsPage />} />
+          {/* <Route path="agenda" element={<AgendaPage />} /> */}
           <Route path="/buscar-usuarios" element={<Suspense fallback={<LoadingSpinner />}><div style={{padding: 24}}><UserSearch /></div></Suspense>} />
           <Route path="/direct-messages" element={<DirectMessagesPage />} />
         </Route>
