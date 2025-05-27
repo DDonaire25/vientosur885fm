@@ -13,6 +13,7 @@ interface BlogPost {
   excerpt: string;
   coverImage: string;
   authorId: string;
+  authorUsername: string; // <-- nuevo campo
   authorName: string;
   authorAvatar: string;
   published: string;
@@ -55,9 +56,9 @@ const BlogsPage: React.FC = () => {
       }
       // Obtener datos de autor para cada blog
       const blogsWithAuthors = await Promise.all((data || []).map(async (b: any) => {
-        let autor = { nombre_completo: 'Autor', avatar_url: '/default-avatar.png', id: '' };
+        let autor = { nombre_completo: 'Autor', avatar_url: '/default-avatar.png', id: '', nombre_usuario: '' };
         if (b.autor_id) {
-          const { data: userData } = await supabase.from('usuarios').select('id, nombre_completo, avatar_url').eq('id', b.autor_id).single();
+          const { data: userData } = await supabase.from('usuarios').select('id, nombre_completo, avatar_url, nombre_usuario').eq('id', b.autor_id).single();
           if (userData) autor = userData;
         }
         // Comentarios
@@ -77,6 +78,7 @@ const BlogsPage: React.FC = () => {
           excerpt: b.excerpt,
           coverImage: b.imagen_portada,
           authorId: autor.id,
+          authorUsername: autor.nombre_usuario, // <-- nuevo campo
           authorName: autor.nombre_completo,
           authorAvatar: autor.avatar_url,
           published: b.publicado_en,
@@ -217,8 +219,10 @@ const BlogsPage: React.FC = () => {
                       {blog.category}
                     </span>
                     <span className="mx-2">•</span>
-                    <Calendar className="h-3 w-3 mr-1" />
-                    <span>{new Date(blog.published).toLocaleDateString('es-ES')}</span>
+                    <Link to={`/blogs/${blog.id}`} className="flex items-center group hover:underline">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      <span>{new Date(blog.published).toLocaleDateString('es-ES')}</span>
+                    </Link>
                   </div>
                   <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">
                     {blog.title}
@@ -227,7 +231,7 @@ const BlogsPage: React.FC = () => {
                     {blog.excerpt}
                   </p>
                   <div className="flex items-center justify-between">
-                    <Link to={blog.authorId ? `/profile/${blog.authorId}` : '#'} className="flex items-center group focus:outline-none focus:ring-2 focus:ring-primary-500" aria-label={`Ver perfil de ${blog.authorName}`}> 
+                    <Link to={blog.authorUsername ? `/profile/${blog.authorUsername}` : '#'} className="flex items-center group focus:outline-none focus:ring-2 focus:ring-primary-500" aria-label={`Ver perfil de ${blog.authorName}`}>
                       <div className="avatar h-6 w-6 mr-2">
                         <img 
                           src={blog.authorAvatar} 

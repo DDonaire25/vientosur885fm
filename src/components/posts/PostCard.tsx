@@ -147,25 +147,37 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Link to={postUser?.username ? `/profile/${postUser.username}` : '#'} className="avatar">
-            {loadingUser ? (
-              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
-            ) : (
+          {postUser?.username ? (
+            <Link to={`/profile/${postUser.username}`} className="avatar" aria-label={`Ver perfil de ${postUser.displayName || 'Usuario'}`}> 
+              {loadingUser ? (
+                <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+              ) : (
+                <img 
+                  src={postUser?.avatar || '/default-avatar.png'} 
+                  alt={postUser?.displayName || 'Usuario'} 
+                  className="avatar-img"
+                />
+              )}
+            </Link>
+          ) : (
+            <div className="avatar">
               <img 
                 src={postUser?.avatar || '/default-avatar.png'} 
                 alt={postUser?.displayName || 'Usuario'} 
-                className="avatar-img"
+                className="avatar-img opacity-50"
               />
-            )}
-          </Link>
+            </div>
+          )}
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">
               {loadingUser ? (
                 <span className="bg-gray-200 rounded w-20 h-4 inline-block animate-pulse" />
-              ) : (
-                <Link to={postUser?.username ? `/profile/${postUser.username}` : '#'} className="hover:underline">
+              ) : postUser?.username ? (
+                <Link to={`/profile/${postUser.username}`} className="hover:underline" aria-label={`Ver perfil de ${postUser.displayName || 'Usuario'}`}> 
                   {postUser?.displayName || 'Usuario'}
                 </Link>
+              ) : (
+                <span className="text-gray-400">{postUser?.displayName || 'Usuario'}</span>
               )}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">

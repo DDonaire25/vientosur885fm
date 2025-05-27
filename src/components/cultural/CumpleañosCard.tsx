@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale';
 import { Cake, Mail, Phone, Award, Share2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface CumpleañosCardProps {
   birthday: {
@@ -98,9 +99,14 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
         )}
 
         <div className="mt-4">
-          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-            <Award className="h-4 w-4 mr-2" />
-            <span>{birthday.disciplina}</span>
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2">
+            <Link to={`/cumpleanos/${birthday.id}`} className="flex items-center group hover:underline">
+              <Cake className="h-4 w-4 mr-1 text-pink-500" />
+              <span>{format(new Date(birthday.fecha_nacimiento), 'dd MMMM', { locale: es })}</span>
+            </Link>
+            <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full ml-2">
+              {birthday.disciplina}
+            </span>
           </div>
           
           <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">

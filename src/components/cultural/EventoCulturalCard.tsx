@@ -199,6 +199,17 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
           </div>
         </div>
 
+        {/* Fecha y categoría */}
+        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
+          <Link to={`/eventos/${event.id}`} className="flex items-center group hover:underline">
+            <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+              {event.categoria || event.categoria}
+            </span>
+            <span className="mx-2">•</span>
+            <span><span className="sr-only">Fecha:</span> {format(new Date(event.fecha_inicio), 'dd MMM yyyy', { locale: es })}</span>
+          </Link>
+        </div>
+
         {/* Reacciones y comentarios */}
         <div className="flex items-center space-x-6 mb-4">
           <button onClick={handleLike} className="flex items-center space-x-1 group">

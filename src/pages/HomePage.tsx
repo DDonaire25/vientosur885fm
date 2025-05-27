@@ -186,7 +186,14 @@ const HomePage = () => {
             ? posts.slice().sort((a, b) => b.likes.length - a.likes.length)
             : posts.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           ).map(post => (
-            <div key={post.id} className="cursor-pointer" onClick={() => handleNavigateToDetail('post', post.id)}>
+            <div key={post.id} className="cursor-pointer"
+              onClick={e => {
+                // Evita navegación si el click fue en un enlace dentro de PostCard
+                const target = e.target as HTMLElement;
+                if (target.closest('a')) return;
+                handleNavigateToDetail('post', post.id);
+              }}
+            >
               <PostCard post={post} />
             </div>
           ))}
