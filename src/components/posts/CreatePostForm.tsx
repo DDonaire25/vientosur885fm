@@ -296,7 +296,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
         )}
         {/* Selector de emoji */}
         {showEmojiPicker && (
-          <div className="absolute z-50 mt-2">
+          <div className="fixed left-12 bottom-8 z-50 animate-slide-down shadow-2xl rounded-2xl bg-white dark:bg-gray-900 border border-primary-200 dark:border-primary-700">
             <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
           </div>
         )}
@@ -306,3 +306,13 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
 };
 
 export default CreatePostForm;
+
+/* Agrega la animación slide-down en tu CSS/tailwind:
+@keyframes slide-down {
+  0% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-slide-down {
+  animation: slide-down 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+*/
