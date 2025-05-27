@@ -56,8 +56,8 @@ Mejorar la experiencia de usuario (UX) y la percepción de funcionamiento de la 
 - [ ] Implementar scroll automático tras crear contenido.
 
 ## Fase 4: Accesibilidad y usabilidad
-- [ ] Mejorar contraste, tamaño de botones y navegación por teclado.
-- [ ] Añadir etiquetas ARIA y roles.
+- [ ] Mejorar el contraste de colores, aumentar el tamaño de los botones y asegurar la navegación completa por teclado en toda la interfaz.
+- [ ] Añadir etiquetas ARIA y roles apropiados en formularios, botones y elementos interactivos para mejorar la accesibilidad.
 
 ## Fase 5: Manejo de errores y estados
 - [ ] Mejorar mensajes de error y manejo de desconexión.

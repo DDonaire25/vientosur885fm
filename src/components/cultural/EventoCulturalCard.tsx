@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { getUserById } from '../../store/postStore';
-import { useEventStore } from '../../store/eventStore';
+import { Link } from 'react-router-dom';
 
 interface EventoCulturalCardProps {
   event: {
@@ -49,7 +49,6 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
   const { user } = useAuthStore();
   const isCreator = user && event.userId && user.id === event.userId;
   const isLiked = user ? likes.includes(user.id) : false;
-  const addEventComment = useEventStore(state => state.addComment);
 
   React.useEffect(() => {
     // Cargar comentarios y usuarios
@@ -220,19 +219,19 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
               return (
                 <div key={comment.id} className="flex space-x-2">
                   <div className="flex-shrink-0">
-                    <div className="avatar w-8 h-8">
+                    <Link to={commentUser?.username ? `/profile/${commentUser.username}` : '#'} className="avatar w-8 h-8 block">
                       <img
                         src={commentUser?.avatar || '/default-avatar.png'}
                         alt={commentUser?.displayName || 'Usuario'}
                         className="avatar-img"
                       />
-                    </div>
+                    </Link>
                   </div>
                   <div className="flex-1">
                     <div className="bg-white dark:bg-gray-900 p-2 rounded-lg">
-                      <p className="font-medium text-sm text-gray-900 dark:text-white">
+                      <Link to={commentUser?.username ? `/profile/${commentUser.username}` : '#'} className="font-medium text-sm text-gray-900 dark:text-white hover:underline">
                         {commentUser?.displayName || 'Usuario'}
-                      </p>
+                      </Link>
                       <p className="text-sm text-gray-700 dark:text-gray-300">{comment.contenido}</p>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{comment.creado_en ? format(new Date(comment.creado_en), 'd MMM HH:mm', { locale: es }) : ''}</p>

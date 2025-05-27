@@ -22,7 +22,6 @@ const BottomNavigation: React.FC = () => {
         <div className="grid grid-cols-5 items-center h-16">
           {navItems.map(({ path, icon: Icon, label }) => {
             const isActive = location.pathname === path;
-            
             return (
               <NavLink
                 key={path}

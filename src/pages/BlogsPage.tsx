@@ -41,19 +41,25 @@ const BlogsPage: React.FC = () => {
   useEffect(() => {
     const fetchBlogs = async () => {
       setIsLoading(true);
-      // Traer solo publicaciones tipo 'blog'
+      // Traer solo publicaciones tipo 'blog' y ajustar el select a la estructura real
       const { data, error } = await supabase
         .from('publicaciones')
-        .select(`id, titulo, excerpt, imagen_portada, categoria, publicado_en, autor:usuarios(id, nombre_completo, avatar_url)`)
+        .select(`id, titulo, excerpt, imagen_portada, categoria, publicado_en, autor_id`)
         .eq('tipo', 'blog')
         .order('publicado_en', { ascending: false });
       if (error) {
         setBlogs([]);
         setIsLoading(false);
+        toast.error('Error al cargar los blogs');
         return;
       }
-      // Para cada blog, obtener comentarios y likes
-      const blogsWithExtras = await Promise.all((data || []).map(async (b: any) => {
+      // Obtener datos de autor para cada blog
+      const blogsWithAuthors = await Promise.all((data || []).map(async (b: any) => {
+        let autor = { nombre_completo: 'Autor', avatar_url: '/default-avatar.png', id: '' };
+        if (b.autor_id) {
+          const { data: userData } = await supabase.from('usuarios').select('id, nombre_completo, avatar_url').eq('id', b.autor_id).single();
+          if (userData) autor = userData;
+        }
         // Comentarios
         const { count: commentsCount } = await supabase
           .from('comentarios_blog')
@@ -65,22 +71,21 @@ const BlogsPage: React.FC = () => {
           .select('*', { count: 'exact', head: true })
           .eq('publicacion_id', b.id)
           .eq('tipo', 'like');
-        // Favorito (puedes agregar lógica para el usuario actual si lo necesitas)
         return {
           id: b.id,
           title: b.titulo,
           excerpt: b.excerpt,
           coverImage: b.imagen_portada,
-          authorId: b.autor?.id || '',
-          authorName: b.autor?.nombre_completo || 'Autor',
-          authorAvatar: b.autor?.avatar_url || '',
+          authorId: autor.id,
+          authorName: autor.nombre_completo,
+          authorAvatar: autor.avatar_url,
           published: b.publicado_en,
           category: b.categoria || 'General',
           commentsCount: commentsCount || 0,
           likesCount: likesCount || 0
         };
       }));
-      setBlogs(blogsWithExtras);
+      setBlogs(blogsWithAuthors);
       setIsLoading(false);
     };
     fetchBlogs();
@@ -155,41 +160,38 @@ const BlogsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" role="main" aria-label="Listado de blogs">
       {/* Selector Feed/Timeline para blogs */}
       <div className="flex justify-center gap-4 my-4">
         {FEED_MODES.map((mode) => (
           <button
             key={mode.value}
-            className={`px-4 py-2 rounded-full font-semibold transition-colors duration-150 ${feedMode === mode.value ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+            className={`px-5 py-2 rounded-full font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base ${feedMode === mode.value ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             onClick={() => setFeedMode(mode.value as 'feed' | 'timeline')}
             aria-pressed={feedMode === mode.value}
+            tabIndex={0}
           >
             {mode.label}
           </button>
         ))}
       </div>
-      
       {/* Categories */}
-      <div className="flex overflow-x-auto pb-2 hide-scrollbar">
+      <nav className="flex overflow-x-auto pb-2 hide-scrollbar" aria-label="Categorías de blogs">
         <div className="flex space-x-2">
           {categories.map(category => (
             <motion.button
               key={category}
               onClick={() => setActiveCategory(category)}
-              className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${
-                activeCategory === category 
-                  ? 'bg-primary-600 text-white' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-              }`}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-500 ${activeCategory === category ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
               whileTap={{ scale: 0.95 }}
+              aria-pressed={activeCategory === category}
+              tabIndex={0}
             >
               {category}
             </motion.button>
           ))}
         </div>
-      </div>
-      
+      </nav>
       {/* Blog List */}
       <div className="space-y-4">
         {blogs
@@ -200,13 +202,13 @@ const BlogsPage: React.FC = () => {
             : new Date(b.published).getTime() - new Date(a.published).getTime()
           )
           .map(blog => (
-            <div key={blog.id} className="card p-4">
+            <article key={blog.id} className="card p-4" tabIndex={0} aria-label={`Blog: ${blog.title}`}> 
               <div className="flex flex-col md:flex-row">
                 <div className="md:w-1/3 aspect-video md:aspect-square">
                   <img 
                     src={blog.coverImage} 
                     alt={blog.title} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                   />
                 </div>
                 <div className="p-4 md:w-2/3">
@@ -225,24 +227,24 @@ const BlogsPage: React.FC = () => {
                     {blog.excerpt}
                   </p>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                    <Link to={blog.authorId ? `/profile/${blog.authorId}` : '#'} className="flex items-center group focus:outline-none focus:ring-2 focus:ring-primary-500" aria-label={`Ver perfil de ${blog.authorName}`}> 
                       <div className="avatar h-6 w-6 mr-2">
                         <img 
                           src={blog.authorAvatar} 
                           alt={blog.authorName} 
-                          className="avatar-img"
+                          className="avatar-img rounded-full border border-gray-300 dark:border-gray-700"
                         />
                       </div>
-                      <span className="text-xs font-medium">{blog.authorName}</span>
-                    </div>
+                      <span className="text-xs font-medium group-hover:underline">{blog.authorName}</span>
+                    </Link>
                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center mr-4">
+                      <span className="flex items-center mr-4" aria-label="Comentarios">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-8 18v-4m8 4v-4m-8 0H3m18 0h-3" />
                         </svg>
                         {blog.commentsCount || 0}
                       </span>
-                      <span className="flex items-center">
+                      <span className="flex items-center" aria-label="Me gusta">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m4-4H8" />
                         </svg>
@@ -252,23 +254,27 @@ const BlogsPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-4 mt-2">
                     <button
-                      className="text-primary-600 underline text-sm"
+                      className="text-primary-600 underline text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       onClick={() => handleShowComments(blog.id)}
+                      aria-expanded={expandedBlogId === blog.id}
+                      aria-controls={`comentarios-blog-${blog.id}`}
+                      tabIndex={0}
                     >
                       {expandedBlogId === blog.id ? 'Ocultar comentarios' : `Ver comentarios (${blog.commentsCount})`}
                     </button>
                     <span className="text-gray-500 text-xs">❤️ {blog.likesCount}</span>
                     <button
                       onClick={() => handleShareBlog(blog)}
-                      className="ml-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="ml-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       title="Compartir blog"
                       aria-label="Compartir blog"
+                      tabIndex={0}
                     >
                       <Share2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     </button>
                   </div>
                   {expandedBlogId === blog.id && (
-                    <div className="mt-3 border-t pt-3">
+                    <div className="mt-3 border-t pt-3" id={`comentarios-blog-${blog.id}`} role="region" aria-label={`Comentarios de ${blog.title}`}> 
                       {loadingComments === blog.id ? (
                         <div className="text-sm text-gray-500">Cargando comentarios...</div>
                       ) : comments[blog.id]?.length === 0 ? (
@@ -277,7 +283,7 @@ const BlogsPage: React.FC = () => {
                         <ul className="space-y-2">
                           {comments[blog.id].map((c: any) => (
                             <li key={c.id} className="flex gap-2 items-start">
-                              <img src={c.autor?.avatar_url || '/default-avatar.png'} alt={c.autor?.nombre_completo || 'Usuario'} className="w-8 h-8 rounded-full" />
+                              <img src={c.autor?.avatar_url || '/default-avatar.png'} alt={c.autor?.nombre_completo || 'Usuario'} className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-700" />
                               <div>
                                 <span className="font-medium text-gray-900 dark:text-white text-sm">{c.autor?.nombre_completo || 'Usuario'}</span>
                                 <p className="text-gray-700 dark:text-gray-300 text-sm">{c.contenido}</p>
@@ -294,8 +300,10 @@ const BlogsPage: React.FC = () => {
                             e.preventDefault();
                             handleAddComment(blog.id);
                           }}
+                          role="form"
+                          aria-label="Agregar comentario"
                         >
-                          <img src={user.avatar} alt={user.displayName} className="w-8 h-8 rounded-full" />
+                          <img src={user.avatar} alt={user.displayName} className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-700" />
                           <input
                             type="text"
                             className="flex-1 input"
@@ -304,11 +312,13 @@ const BlogsPage: React.FC = () => {
                             onChange={e => setNewComment(e.target.value)}
                             disabled={isSubmitting}
                             maxLength={300}
+                            aria-label="Escribe un comentario"
                           />
                           <button
                             type="submit"
-                            className="btn btn-primary px-4 py-2"
+                            className="btn btn-primary px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
                             disabled={isSubmitting || !newComment.trim()}
+                            aria-disabled={isSubmitting || !newComment.trim()}
                           >
                             {isSubmitting ? 'Enviando...' : 'Comentar'}
                           </button>
@@ -318,20 +328,20 @@ const BlogsPage: React.FC = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </article>
           ))}
       </div>
-      
       {/* Create Blog Button */}
       <div className="fixed bottom-20 right-4 z-40">
         <Link to="/blogs/new">
           <motion.button
-            className="btn btn-primary rounded-full p-3 shadow-lg"
+            className="btn btn-primary rounded-full p-4 shadow-lg text-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             aria-label="Crear nuevo blog"
+            tabIndex={0}
           >
-            <Book className="h-5 w-5" />
+            <Book className="h-6 w-6" />
           </motion.button>
         </Link>
       </div>

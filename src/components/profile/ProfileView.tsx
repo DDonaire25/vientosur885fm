@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Settings, LogOut, Camera, MessageCircle, BookOpen, Users, ExternalLink, Heart, User as UserIcon, MoreVertical } from 'lucide-react';
+import { Edit2, Settings, LogOut, Camera, MessageCircle, BookOpen, Users, ExternalLink, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -53,7 +53,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
   const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [showSubMenu, setShowSubMenu] = useState<string | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   // Cerrar menú al hacer click fuera
@@ -61,7 +60,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
-        setShowSubMenu(null);
       }
     }
     if (showMenu) {
@@ -371,76 +369,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Botón menú superior */}
-      <div className="absolute top-4 right-4 z-30">
-        <button
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none"
-          aria-label="Abrir menú"
-          onClick={() => setShowMenu((v) => !v)}
-        >
-          <MoreVertical className="h-6 w-6" />
-        </button>
-        {showMenu && (
-          <div ref={menuRef} className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {/* MENSAJES */}
-              <li>
-                <button
-                  className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                  onClick={() => setShowSubMenu(showSubMenu === 'mensajes' ? null : 'mensajes')}
-                  aria-haspopup="true"
-                  aria-expanded={showSubMenu === 'mensajes'}
-                >
-                  📩 Mensajes
-                  <span className="ml-auto">›</span>
-                </button>
-                {showSubMenu === 'mensajes' && (
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li>
-                      <Link to="/online-users" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Usuarios en línea</Link>
-                    </li>
-                    <li>
-                      <Link to="/messages" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Mensaje/Chat</Link>
-                    </li>
-                  </ul>
-                )}
-              </li>
-              {/* MÁS OPCIONES */}
-              <li>
-                <button
-                  className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                  onClick={() => setShowSubMenu(showSubMenu === 'mas' ? null : 'mas')}
-                  aria-haspopup="true"
-                  aria-expanded={showSubMenu === 'mas'}
-                >
-                  ➕ Más opciones
-                  <span className="ml-auto">›</span>
-                </button>
-                {showSubMenu === 'mas' && (
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li><Link to="/blogs" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Blogs</Link></li>
-                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Eventos culturales</Link></li>
-                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Tareas</Link></li>
-                    <li><Link to="/calendar" className="block px-4 py-2 hover:bg-primary-100 dark:hover:bg-gray-800 rounded">Cumpleaños</Link></li>
-                  </ul>
-                )}
-              </li>
-              {/* CONFIGURACIÓN Y CERRAR SESIÓN */}
-              <li>
-                <Link to="#" className="block px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-800">Configuración</Link>
-              </li>
-              <li>
-                <button
-                  onClick={logout}
-                  className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-gray-800 text-red-600 dark:text-red-400"
-                >
-                  Cerrar sesión
-                </button>
-              </li>
-            </ul>
-          </div>
-        )}
-      </div>
       {/* Profile Header */}
       <div className="relative">
         <div className="h-32 bg-gradient-to-r from-primary-600 to-secondary-500 rounded-t-xl">

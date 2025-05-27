@@ -1,15 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import CreatePostForm from '../components/posts/CreatePostForm';
 import PostCard from '../components/posts/PostCard';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import { usePostStore } from '../store/postStore';
 import { useEventStore } from '../store/eventStore';
 import { EventoCulturalCard } from '../components/cultural/EventoCulturalCard';
 import CreateEventForm from '../components/calendar/CreateEventForm';
 import { Event } from '../store/eventStore';
-import { Share2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 const FEED_MODES = [
   { label: 'Para ti', value: 'feed' },
@@ -21,7 +18,7 @@ const HomePage = () => {
   const { events, isLoading: isLoadingEvents, fetchEvents } = useEventStore();
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [feedMode, setFeedMode] = useState<'feed' | 'timeline'>('feed');
-  const [eventMode, setEventMode] = useState<'feed' | 'timeline'>('feed');
+  const [eventMode] = useState<'feed' | 'timeline'>('feed');
 
   useEffect(() => {
     fetchPosts();
@@ -29,26 +26,26 @@ const HomePage = () => {
   }, [fetchPosts, fetchEvents]);
 
   // Handler genérico para compartir cualquier contenido
-  const handleShare = (type: 'post' | 'event', item: any) => {
-    let url = window.location.origin;
-    let title = '';
-    let text = '';
-    if (type === 'post') {
-      url += '/posts/' + item.id;
-      title = item.content?.slice(0, 60) || 'Post de Red Viento Sur';
-      text = item.content;
-    } else if (type === 'event') {
-      url += '/eventos/' + item.id;
-      title = item.titulo || item.title || 'Evento cultural';
-      text = item.descripcion || item.description || '';
-    }
-    if (navigator.share) {
-      navigator.share({ title, text, url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url);
-      toast.success('¡Enlace copiado!');
-    }
-  };
+  // const handleShare = (type: 'post' | 'event', item: any) => {
+  //   let url = window.location.origin;
+  //   let title = '';
+  //   let text = '';
+  //   if (type === 'post') {
+  //     url += '/posts/' + item.id;
+  //     title = item.content?.slice(0, 60) || 'Post de Red Viento Sur';
+  //     text = item.content;
+  //   } else if (type === 'event') {
+  //     url += '/eventos/' + item.id;
+  //     title = item.titulo || item.title || 'Evento cultural';
+  //     text = item.descripcion || item.description || '';
+  //   }
+  //   if (navigator.share) {
+  //     navigator.share({ title, text, url }).catch(() => {});
+  //   } else {
+  //     navigator.clipboard.writeText(url);
+  //     toast.success('¡Enlace copiado!');
+  //   }
+  // };
 
   // Navegación a detalle de post/evento
   const handleNavigateToDetail = (type: 'post' | 'event', id: string) => {
@@ -91,14 +88,23 @@ const HomePage = () => {
                 event_type: editingEvent.type,
                 date: editingEvent.date.split('T')[0],
                 location: editingEvent.location,
-                target_audience: editingEvent.metadata?.target_audience || undefined,
+                target_audience: (['Infantil', 'Adultos', 'Todos'].includes(editingEvent.metadata?.target_audience ?? '')
+                  ? editingEvent.metadata?.target_audience
+                  : undefined) as 'Infantil' | 'Adultos' | 'Todos' | undefined,
                 cost: { type: 'free' },
                 responsible_person: editingEvent.metadata?.responsible_person || { name: '', phone: '' },
                 technical_requirements: editingEvent.metadata?.technical_requirements || [],
                 image_url: editingEvent.imagen_url,
                 tags: editingEvent.metadata?.tags || [],
-                recurrence: editingEvent.metadata?.recurrence && typeof editingEvent.metadata?.recurrence.type === 'string'
-                  ? editingEvent.metadata?.recurrence
+                recurrence: (
+                  editingEvent.metadata?.recurrence &&
+                  typeof editingEvent.metadata?.recurrence.type === 'string' &&
+                  ['custom', 'none', 'daily', 'weekly', 'monthly'].includes(editingEvent.metadata?.recurrence.type)
+                )
+                  ? {
+                      ...editingEvent.metadata?.recurrence,
+                      type: editingEvent.metadata?.recurrence.type as 'custom' | 'none' | 'daily' | 'weekly' | 'monthly'
+                    }
                   : { type: 'none' }
               }}
             />
@@ -157,7 +163,6 @@ const HomePage = () => {
                   }
                 }}
                 onEdit={() => setEditingEvent(event)}
-                // onShare eliminado, no existe en props
               />
             </div>
           ))}
