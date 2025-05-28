@@ -4,7 +4,7 @@ import PostCard from '../components/posts/PostCard';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import { usePostStore } from '../store/postStore';
 import { useEventStore } from '../store/eventStore';
-import { EventoCulturalCard } from '../components/cultural/EventoCulturalCard';
+import EventoCulturalCard from '../components/cultural/EventoCulturalCard';
 import CreateEventForm from '../components/calendar/CreateEventForm';
 import { Event } from '../store/eventStore';
 
@@ -143,7 +143,16 @@ const HomePage = () => {
             ? events.slice()
             : events.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           ).map(event => (
-            <div key={event.id} className="cursor-pointer" onClick={() => handleNavigateToDetail('event', event.id)}>
+            <div
+              key={event.id}
+              className="cursor-pointer"
+              onClick={e => {
+                // Evita navegación si el click fue en el menú de tres puntos o su dropdown
+                const target = e.target as HTMLElement;
+                if (target.closest('[data-menu="evento-menu"]')) return;
+                handleNavigateToDetail('event', event.id);
+              }}
+            >
               <EventoCulturalCard
                 event={{
                   id: event.id,

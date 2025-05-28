@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { EventoCulturalCard } from "../components/cultural/EventoCulturalCard";
-import { CumpleañosCard } from "../components/cultural/CumpleañosCard";
+import EventoCulturalCard from "../components/cultural/EventoCulturalCard";
+import CumpleañosCard from "../components/cultural/CumpleañosCard";
 import { TareaCulturalKanban } from "../components/cultural/TareaCulturalKanban";
 import { supabase } from "../lib/supabase";
 import { format } from "date-fns";
@@ -18,7 +18,7 @@ const AgendaPage: React.FC = () => {
     // Cargar eventos culturales
     const fetchEventos = async () => {
       setLoadingEventos(true);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('eventos')
         .select('*')
         .order('fecha_inicio', { ascending: true });

@@ -1,13 +1,12 @@
+
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
   Heart, 
-  Edit, 
   MessageCircle, 
   Send,
-  Trash,
-  Share2
+  MoreHorizontal
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -38,9 +37,11 @@ interface EventoCulturalCardProps {
     };
   };
   onEdit?: () => void;
+  disableCardNavigation?: boolean;
 }
 
-export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit }) => {
+const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit, disableCardNavigation }) => {
+  const [showMenu, setShowMenu] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [commentUsers, setCommentUsers] = useState<Record<string, any>>({});
@@ -171,43 +172,69 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
               {event.descripcion}
             </p>
           </div>
-          <div className="flex space-x-2">
-            {isCreator && (
-              <>
-                <button
-                  onClick={onEdit}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                >
-                  <Edit className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="p-2 text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300"
-                  title="Eliminar evento"
-                >
-                  <Trash className="h-5 w-5" />
-                </button>
-              </>
-            )}
-            <button
-              onClick={handleShare}
-              className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
-              title="Compartir evento"
+        <div className="flex space-x-2 relative">
+          <button
+            type="button"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+            onClick={e => { e.stopPropagation(); setShowMenu((v) => !v); }}
+            aria-label="Abrir menú"
+            data-menu="evento-menu"
+          >
+            <MoreHorizontal className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+          </button>
+          {showMenu && (
+            <div
+              className="absolute right-0 top-10 z-50 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 min-w-[180px] animate-fade-in"
             >
-              <Share2 className="h-5 w-5" />
-            </button>
-          </div>
+              <ul className="py-2">
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {navigator.clipboard.writeText(window.location.origin + '/eventos/' + event.id); setShowMenu(false); toast.success('¡Enlace copiado!')}}>
+                    Guardar enlace
+                  </button>
+                </li>
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={handleShare}>
+                    Compartir evento
+                  </button>
+                </li>
+                {isCreator && (
+                  <>
+                    <li>
+                      <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {setShowMenu(false); onEdit && onEdit();}}>
+                        Editar evento
+                      </button>
+                    </li>
+                    <li>
+                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                        Eliminar evento
+                      </button>
+                    </li>
+                  </>
+                )}
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={e => { e.stopPropagation(); setShowMenu(false); }}>
+                    Cancelar
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
         </div>
 
         {/* Fecha y categoría */}
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <Link to={`/eventos/${event.id}`} className="flex items-center group hover:underline">
-            <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
-              {event.categoria || event.categoria}
-            </span>
-            <span className="mx-2">•</span>
+          <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+            {event.categoria || event.categoria}
+          </span>
+          <span className="mx-2">•</span>
+          {disableCardNavigation ? (
             <span><span className="sr-only">Fecha:</span> {format(new Date(event.fecha_inicio), 'dd MMM yyyy', { locale: es })}</span>
-          </Link>
+          ) : (
+            <Link to={`/eventos/${event.id}`} className="group hover:underline">
+              <span><span className="sr-only">Fecha:</span> {format(new Date(event.fecha_inicio), 'dd MMM yyyy', { locale: es })}</span>
+            </Link>
+          )}
         </div>
 
         {/* Reacciones y comentarios */}
@@ -289,3 +316,5 @@ export const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, o
     </div>
   );
 };
+
+export default EventoCulturalCard;

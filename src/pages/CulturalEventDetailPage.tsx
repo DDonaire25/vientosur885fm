@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import NotFoundPage from './NotFoundPage';
 import { supabase } from '../lib/supabase';
-import { EventoCulturalCard } from '../components/cultural/EventoCulturalCard';
+import EventoCulturalCard from '../components/cultural/EventoCulturalCard';
 
 const CulturalEventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ const CulturalEventDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto p-4">
-      <EventoCulturalCard event={event} />
+      <EventoCulturalCard event={event} disableCardNavigation />
     </div>
   );
 };

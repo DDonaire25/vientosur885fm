@@ -10,11 +10,12 @@ import { Link } from 'react-router-dom';
 
 interface PostCardProps {
   post: Post;
+  disableCardNavigation?: boolean;
 }
 
 const urlRegex = /(https?:\/\/[\w\-\.\/?#&=;%+~]+)|(www\.[\w\-\.\/?#&=;%+~]+)/gi;
 
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, disableCardNavigation }) => {
   const [isCommentExpanded, setIsCommentExpanded] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [postUser, setPostUser] = useState<any>(null);
@@ -25,6 +26,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   const { user } = useAuthStore();
   const { toggleLike, addComment, toggleFavorite } = usePostStore();
+  const [showMenu, setShowMenu] = useState(false);
   const commentInputRef = React.useRef<HTMLInputElement>(null);
 
   // Cargar usuario del post
@@ -143,7 +145,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   }
   
   return (
-    <article className="feed-item">
+    <article className="feed-item" style={{ overflow: 'visible' }}>
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -181,19 +183,68 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               )}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {formatPostDate(post.createdAt)}
+              {disableCardNavigation ? (
+                <span>{formatPostDate(post.createdAt)}</span>
+              ) : (
+                <Link to={`/posts/${post.id}`} className="hover:underline" onClick={e => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest('[data-menu="post-menu"]')) {
+                    e.preventDefault();
+                  }
+                }}>
+                  <span>{formatPostDate(post.createdAt)}</span>
+                </Link>
+              )}
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+        <div className="flex items-center space-x-2 relative">
+          <button
+            type="button"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+            onClick={e => { e.stopPropagation(); setShowMenu((v) => !v); }}
+            aria-label="Abrir menú"
+            data-menu="post-menu"
+          >
             <MoreHorizontal className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           </button>
-          {user && user.id === post.userId && (
-            <button onClick={handleDelete} className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900">
-              {/* Puedes volver a importar Trash si lo deseas */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m5 0H6" /></svg>
-            </button>
+          {showMenu && (
+            <div
+              className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 min-w-[180px] animate-fade-in"
+              style={{overflow: 'visible'}}
+            >
+              <ul className="py-2">
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {navigator.clipboard.writeText(window.location.origin + '/posts/' + post.id); setShowMenu(false); toast.success('¡Enlace copiado!')}}>
+                    Guardar enlace
+                  </button>
+                </li>
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={handleShare}>
+                    Compartir publicación
+                  </button>
+                </li>
+                {user && user.id === post.userId && (
+                  <>
+                    <li>
+                      <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {setShowMenu(false); /* Aquí podrías abrir un modal de edición */}}>
+                        Editar publicación
+                      </button>
+                    </li>
+                    <li>
+                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                        Eliminar publicación
+                      </button>
+                    </li>
+                  </>
+                )}
+                <li>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={e => { e.stopPropagation(); setShowMenu(false); }}>
+                    Cancelar
+                  </button>
+                </li>
+              </ul>
+            </div>
           )}
         </div>
       </div>

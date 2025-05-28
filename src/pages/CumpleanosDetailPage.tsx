@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import NotFoundPage from './NotFoundPage';
 import { supabase } from '../lib/supabase';
-import { CumpleañosCard } from '../components/cultural/CumpleañosCard';
+import CumpleañosCard from '../components/cultural/CumpleañosCard';
 
 const CumpleanosDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ const CumpleanosDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto p-4">
-      <CumpleañosCard birthday={birthday} />
+      <CumpleañosCard birthday={birthday} disableCardNavigation />
     </div>
   );
 };

@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Cake, Mail, Phone, Award, Share2 } from 'lucide-react';
+import { Cake, Mail, Phone, MoreHorizontal } from 'lucide-react';
+
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+
+
 
 interface CumpleañosCardProps {
   birthday: {
@@ -19,9 +22,12 @@ interface CumpleañosCardProps {
     imagen_url?: string;
   };
   onEdit?: () => void;
+  disableCardNavigation?: boolean;
 }
 
-export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit }) => {
+const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit, disableCardNavigation }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
   const isToday = (date: string) => {
     const today = new Date();
     const birthDate = new Date(date);
@@ -60,9 +66,7 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${
-      isToday(birthday.fecha_nacimiento) ? 'ring-2 ring-pink-500' : ''
-    }`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${isToday(birthday.fecha_nacimiento) ? 'ring-2 ring-pink-500' : ''}`}>
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -73,18 +77,50 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
               {birthday.rol}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Cake className={`h-6 w-6 ${
-              isToday(birthday.fecha_nacimiento) ? 'text-pink-500' : 'text-gray-400'
-            }`} />
+          <div className="flex items-center gap-2 relative">
+            <Cake className={`h-6 w-6 ${isToday(birthday.fecha_nacimiento) ? 'text-pink-500' : 'text-gray-400'}`} />
             <button
-              onClick={handleShare}
+              type="button"
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-              title="Compartir cumpleaños"
-              aria-label="Compartir cumpleaños"
+              onClick={e => { e.stopPropagation(); setShowMenu((v) => !v); }}
+              aria-label="Abrir menú"
+              data-menu="cumple-menu"
             >
-              <Share2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <MoreHorizontal className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             </button>
+            {showMenu && (
+              <div
+                className="absolute right-0 top-10 z-50 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 min-w-[180px] animate-fade-in"
+              >
+                <ul className="py-2">
+                  <li>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {navigator.clipboard.writeText(window.location.origin + '/cumpleanos/' + birthday.id); setShowMenu(false); toast.success('¡Enlace copiado!')}}>
+                      Guardar enlace
+                    </button>
+                  </li>
+                  <li>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={handleShare}>
+                      Compartir cumpleaños
+                    </button>
+                  </li>
+                  <li>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {setShowMenu(false); onEdit && onEdit();}}>
+                      Editar cumpleaños
+                    </button>
+                  </li>
+                  <li>
+                    <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                      Eliminar cumpleaños
+                    </button>
+                  </li>
+                  <li>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={e => { e.stopPropagation(); setShowMenu(false); }}>
+                      Cancelar
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 
@@ -100,10 +136,22 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
 
         <div className="mt-4">
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2">
-            <Link to={`/cumpleanos/${birthday.id}`} className="flex items-center group hover:underline">
-              <Cake className="h-4 w-4 mr-1 text-pink-500" />
-              <span>{format(new Date(birthday.fecha_nacimiento), 'dd MMMM', { locale: es })}</span>
-            </Link>
+            {disableCardNavigation ? (
+              <span className="flex items-center">
+                <Cake className="h-4 w-4 mr-1 text-pink-500" />
+                <span>{format(new Date(birthday.fecha_nacimiento), 'dd MMMM', { locale: es })}</span>
+              </span>
+            ) : (
+              <Link to={`/cumpleanos/${birthday.id}`} className="flex items-center group hover:underline" onClick={e => {
+                const target = e.target as HTMLElement;
+                if (target.closest('[data-menu="cumple-menu"]')) {
+                  e.preventDefault();
+                }
+              }}>
+                <Cake className="h-4 w-4 mr-1 text-pink-500" />
+                <span>{format(new Date(birthday.fecha_nacimiento), 'dd MMMM', { locale: es })}</span>
+              </Link>
+            )}
             <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full ml-2">
               {birthday.disciplina}
             </span>
@@ -142,3 +190,5 @@ export const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEd
     </div>
   );
 };
+
+export default CumpleañosCard;

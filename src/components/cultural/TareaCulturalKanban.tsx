@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Clock, User, Edit, Trash } from 'lucide-react';
+import { CheckSquare, Clock, User, MoreHorizontal } from 'lucide-react';
+  const [showMenuId, setShowMenuId] = useState<string | null>(null);
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -107,6 +108,37 @@ export const TareaCulturalKanban: React.FC = () => {
                     <h4 className="font-medium text-gray-900 dark:text-white">
                       {task.titulo}
                     </h4>
+                    <div className="relative">
+                      <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setShowMenuId(showMenuId === task.id ? null : task.id)} aria-label="Abrir menú">
+                        <MoreHorizontal className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      </button>
+                      {showMenuId === task.id && (
+                        <div className="absolute right-0 top-10 z-20 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 min-w-[180px]">
+                          <ul className="py-2">
+                            <li>
+                              <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {navigator.clipboard.writeText(task.titulo + ' - ' + task.descripcion); setShowMenuId(null); toast.success('¡Tarea copiada!')}}>
+                                Copiar tarea
+                              </button>
+                            </li>
+                            <li>
+                              <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {setShowMenuId(null); /* Aquí podrías abrir un modal de edición */}}>
+                                Editar tarea
+                              </button>
+                            </li>
+                            <li>
+                              <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={async () => {await supabase.from('tareas').delete().eq('id', task.id); setShowMenuId(null); toast.success('Tarea eliminada'); fetchTasks();}}>
+                                Eliminar tarea
+                              </button>
+                            </li>
+                            <li>
+                              <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setShowMenuId(null)}>
+                                Cancelar
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">

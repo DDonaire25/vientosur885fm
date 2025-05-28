@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePostStore } from '../store/postStore';
-import NotFoundPage from './NotFoundPage';
 import PostCard from '../components/posts/PostCard';
 import { supabase } from '../lib/supabase';
+import NotFoundPage from './NotFoundPage';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +50,7 @@ const PostDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto p-4">
-      <PostCard post={post} />
+      <PostCard post={post} disableCardNavigation />
     </div>
   );
 };
