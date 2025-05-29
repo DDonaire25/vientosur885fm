@@ -57,14 +57,7 @@ const HomePage = () => {
   //   }
   // };
 
-  // Navegación a detalle de post/evento
-  const handleNavigateToDetail = (type: 'post' | 'event', id: string) => {
-    if (type === 'post') {
-      window.location.href = `/posts/${id}`;
-    } else if (type === 'event') {
-      window.location.href = `/eventos/${id}`;
-    }
-  };
+
 
   return (
     <div className="space-y-4">
