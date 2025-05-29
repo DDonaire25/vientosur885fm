@@ -38,9 +38,10 @@ interface EventoCulturalCardProps {
   };
   onEdit?: () => void;
   disableCardNavigation?: boolean;
+  onDeleted?: () => void;
 }
 
-const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit, disableCardNavigation }) => {
+const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit, disableCardNavigation, onDeleted }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
@@ -133,7 +134,7 @@ const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit, 
         .eq('id', event.id);
       if (error) throw error;
       toast.success('Evento eliminado exitosamente');
-      // Opcional: recargar eventos o emitir callback
+      if (typeof onDeleted === 'function') onDeleted();
     } catch (error) {
       toast.error('Error al eliminar el evento');
     }
@@ -200,12 +201,12 @@ const EventoCulturalCard: React.FC<EventoCulturalCardProps> = ({ event, onEdit, 
                 {isCreator && (
                   <>
                     <li>
-                      <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => {setShowMenu(false); onEdit && onEdit();}}>
+                      <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => { setShowMenu(false); onEdit && onEdit(); }}>
                         Editar evento
                       </button>
                     </li>
                     <li>
-                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={async () => { await handleDelete(); setShowMenu(false); }}>
                         Eliminar evento
                       </button>
                     </li>

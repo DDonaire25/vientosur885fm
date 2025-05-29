@@ -19,6 +19,16 @@ const HomePage = () => {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [feedMode, setFeedMode] = useState<'feed' | 'timeline'>('feed');
   const [eventMode] = useState<'feed' | 'timeline'>('feed');
+  // Estados locales para manipulación inmediata de UI
+  const [localPosts, setLocalPosts] = useState(posts);
+  const [localEvents, setLocalEvents] = useState(events);
+
+  useEffect(() => {
+    setLocalPosts(posts);
+  }, [posts]);
+  useEffect(() => {
+    setLocalEvents(events);
+  }, [events]);
 
   useEffect(() => {
     fetchPosts();
@@ -132,7 +142,7 @@ const HomePage = () => {
         <div>
           {[...Array(2)].map((_, i) => <SkeletonCard key={i} type="event" />)}
         </div>
-      ) : events.length === 0 ? (
+      ) : localEvents.length === 0 ? (
         <div className="card py-8 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold mb-2">No hay eventos culturales aún</p>
           <p className="text-sm text-gray-400">¡Sé el primero en crear un evento!</p>
@@ -140,40 +150,33 @@ const HomePage = () => {
       ) : (
         <div className="space-y-4">
           {(eventMode === 'feed'
-            ? events.slice()
-            : events.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            ? localEvents.slice()
+            : localEvents.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           ).map(event => (
-            <div
+            <EventoCulturalCard
               key={event.id}
-              className="cursor-pointer"
-              onClick={e => {
-                // Evita navegación si el click fue en el menú de tres puntos o su dropdown
-                const target = e.target as HTMLElement;
-                if (target.closest('[data-menu="evento-menu"]')) return;
-                handleNavigateToDetail('event', event.id);
+              event={{
+                id: event.id,
+                titulo: event.title,
+                descripcion: event.description,
+                fecha_inicio: event.date,
+                ubicacion: event.location || '',
+                imagen_url: event.imagen_url,
+                categoria: '',
+                tipo: event.type,
+                userId: event.userId,
+                metadata: {
+                  target_audience: event.metadata?.target_audience as any || '',
+                  responsible_person: event.metadata?.responsible_person || { name: '', phone: '' },
+                  technical_requirements: event.metadata?.technical_requirements || [],
+                  tags: event.metadata?.tags || [],
+                }
               }}
-            >
-              <EventoCulturalCard
-                event={{
-                  id: event.id,
-                  titulo: event.title,
-                  descripcion: event.description,
-                  fecha_inicio: event.date,
-                  ubicacion: event.location || '',
-                  imagen_url: event.imagen_url,
-                  categoria: '',
-                  tipo: event.type,
-                  userId: event.userId,
-                  metadata: {
-                    target_audience: event.metadata?.target_audience as any || '',
-                    responsible_person: event.metadata?.responsible_person || { name: '', phone: '' },
-                    technical_requirements: event.metadata?.technical_requirements || [],
-                    tags: event.metadata?.tags || [],
-                  }
-                }}
-                onEdit={() => setEditingEvent(event)}
-              />
-            </div>
+              onEdit={() => setEditingEvent(event)}
+              onDeleted={() => {
+                setLocalEvents((prev) => prev.filter((e) => e.id !== event.id));
+              }}
+            />
           ))}
         </div>
       )}
@@ -184,7 +187,7 @@ const HomePage = () => {
         <div>
           {[...Array(3)].map((_, i) => <SkeletonCard key={i} type="post" />)}
         </div>
-      ) : posts.length === 0 ? (
+      ) : localPosts.length === 0 ? (
         <div className="card py-8 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold mb-2">No hay publicaciones aún</p>
           <p className="text-sm text-gray-400">¡Crea tu primera publicación para comenzar!</p>
@@ -192,19 +195,16 @@ const HomePage = () => {
       ) : (
         <div className="space-y-4">
           {(feedMode === 'feed'
-            ? posts.slice().sort((a, b) => b.likes.length - a.likes.length)
-            : posts.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            ? localPosts.slice().sort((a, b) => b.likes.length - a.likes.length)
+            : localPosts.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           ).map(post => (
-            <div key={post.id} className="cursor-pointer"
-              onClick={e => {
-                // Evita navegación si el click fue en un enlace dentro de PostCard
-                const target = e.target as HTMLElement;
-                if (target.closest('a')) return;
-                handleNavigateToDetail('post', post.id);
+            <PostCard
+              key={post.id}
+              post={post}
+              onDeleted={() => {
+                setLocalPosts((prev) => prev.filter((p) => p.id !== post.id));
               }}
-            >
-              <PostCard post={post} />
-            </div>
+            />
           ))}
         </div>
       )}

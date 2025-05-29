@@ -11,11 +11,12 @@ import { Link } from 'react-router-dom';
 interface PostCardProps {
   post: Post;
   disableCardNavigation?: boolean;
+  onDeleted?: () => void;
 }
 
 const urlRegex = /(https?:\/\/[\w\-\.\/?#&=;%+~]+)|(www\.[\w\-\.\/?#&=;%+~]+)/gi;
 
-const PostCard: React.FC<PostCardProps> = ({ post, disableCardNavigation }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, disableCardNavigation, onDeleted }) => {
   const [isCommentExpanded, setIsCommentExpanded] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [postUser, setPostUser] = useState<any>(null);
@@ -108,12 +109,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, disableCardNavigation }) => {
     if (!window.confirm('¿Estás seguro de eliminar este post?')) return;
     try {
       const { error } = await supabase
-        .from('posts') // Cambiado de 'publicaciones' a 'posts'
+        .from('posts')
         .delete()
         .eq('id', post.id);
       if (error) throw error;
       toast.success('Post eliminado exitosamente');
-      // Elimina de la UI si existe la función
+      if (typeof onDeleted === 'function') onDeleted();
     } catch (error) {
       toast.error('Error al eliminar el post');
     }
@@ -232,7 +233,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, disableCardNavigation }) => {
                       </button>
                     </li>
                     <li>
-                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                      <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={async () => {await handleDelete(); setShowMenu(false);}}>
                         Eliminar publicación
                       </button>
                     </li>

@@ -23,9 +23,10 @@ interface CumpleañosCardProps {
   };
   onEdit?: () => void;
   disableCardNavigation?: boolean;
+  onDeleted?: () => void;
 }
 
-const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit, disableCardNavigation }) => {
+const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit, disableCardNavigation, onDeleted }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const isToday = (date: string) => {
@@ -46,6 +47,7 @@ const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit, dis
 
       if (error) throw error;
       toast.success('Cumpleaños eliminado exitosamente');
+      if (typeof onDeleted === 'function') onDeleted();
     } catch (error) {
       console.error('Error al eliminar cumpleaños:', error);
       toast.error('Error al eliminar el cumpleaños');
@@ -109,7 +111,7 @@ const CumpleañosCard: React.FC<CumpleañosCardProps> = ({ birthday, onEdit, dis
                     </button>
                   </li>
                   <li>
-                    <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={() => {handleDelete(); setShowMenu(false);}}>
+                    <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-gray-800" onClick={async () => {await handleDelete(); setShowMenu(false);}}>
                       Eliminar cumpleaños
                     </button>
                   </li>

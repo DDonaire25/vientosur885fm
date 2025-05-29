@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import PostCard from '../components/posts/PostCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { usePostStore } from '../store/postStore';
@@ -31,7 +31,16 @@ const FavoritesPage = () => {
       ) : (
         <div className="space-y-4">
           {favoritePosts.map(post => (
-            <PostCard key={post.id} post={post} />
+            <PostCard
+              key={post.id}
+              post={post}
+              onDeleted={() => {
+                // Eliminar el post de favoritos al borrarlo
+                // Si tienes un método para actualizar favoritos, úsalo aquí
+                // Por simplicidad, recarga los favoritos
+                fetchPosts();
+              }}
+            />
           ))}
         </div>
       )}
