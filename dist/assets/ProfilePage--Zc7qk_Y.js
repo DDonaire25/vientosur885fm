@@ -1,1 +1,0 @@
-import{r as i,j as e,E as r,e as o}from"./index-BrRfBUNT.js";const n=()=>{const[t,s]=i.useState(!1);return e.jsx("div",{children:t?e.jsx(r,{onCancel:()=>s(!1)}):e.jsx(o,{onEdit:()=>s(!0)})})};export{n as default};
