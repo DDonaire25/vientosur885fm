@@ -34,6 +34,15 @@ export interface Event {
   };
 }
 
+// Tipo para comentarios de evento
+export interface EventComment {
+  id: string;
+  autor_id: string;
+  contenido: string;
+  creado_en: string;
+  parent_id?: string | null;
+}
+
 interface EventState {
   events: Event[];
   isLoading: boolean;
@@ -239,11 +248,11 @@ export const useEventStore = create<EventState>((set, get) => ({
     });
   },
 
-  addComment: async (eventId, userId, content) => {
+  addComment: async (eventId, userId, content, parentId = null) => {
     try {
       const { data, error } = await supabase
         .from('comentarios_evento')
-        .insert({ evento_id: eventId, autor_id: userId, contenido: content })
+        .insert({ evento_id: eventId, autor_id: userId, contenido: content, parent_id: parentId })
         .select()
         .single();
       if (error) throw error;

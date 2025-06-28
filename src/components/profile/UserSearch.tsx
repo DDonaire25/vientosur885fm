@@ -1,15 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 interface User {
   id: string;
   nombre_usuario: string;
   nombre_completo?: string;
   avatar_url?: string;
+  email?: string;
 }
 
-const UserSearch: React.FC = () => {
+interface UserSearchProps {
+  onSelectUser?: (user: User) => void;
+}
+
+const highlight = (text: string, query: string) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig');
+  return text.split(regex).map((part, i) =>
+    regex.test(part) ? <mark key={i} className="bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 rounded px-0.5">{part}</mark> : part
+  );
+};
+
+const UserSearch = ({ onSelectUser }: UserSearchProps): JSX.Element => {
+  const currentUser = useAuthStore(state => state.user);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,13 +41,16 @@ const UserSearch: React.FC = () => {
     }
     setLoading(true);
     const timeout = setTimeout(async () => {
+      // Búsqueda mejorada: nombre_usuario, nombre_completo, email, sin acentos
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nombre_usuario, nombre_completo, avatar_url')
-        .or(`nombre_usuario.ilike.%${query}%,nombre_completo.ilike.%${query}%`)
+        .select('id, nombre_usuario, nombre_completo, avatar_url, email')
+        .or(`nombre_usuario.ilike.%${query}%,nombre_completo.ilike.%${query}%,email.ilike.%${query}%`)
         .limit(8);
       if (!error && data) {
-        setResults(data);
+        // Excluir el usuario autenticado
+        const filtered = currentUser ? data.filter(u => u.id !== currentUser.id) : data;
+        setResults(filtered);
         setShowDropdown(true);
       } else {
         setResults([]);
@@ -72,8 +90,8 @@ const UserSearch: React.FC = () => {
       e.preventDefault();
     } else if (e.key === 'Enter') {
       if (results[highlighted]) {
-        window.location.href = `/profile/${results[highlighted].nombre_usuario}`;
         setShowDropdown(false);
+        if (onSelectUser) onSelectUser(results[highlighted]);
       }
     } else if (e.key === 'Escape') {
       setShowDropdown(false);
@@ -104,7 +122,10 @@ const UserSearch: React.FC = () => {
             <div
               key={user.id}
               className={`flex items-center px-4 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-gray-800 ${highlighted === idx ? 'bg-primary-100 dark:bg-gray-800' : ''}`}
-              onMouseDown={() => { window.location.href = `/profile/${user.nombre_usuario}`; setShowDropdown(false); }}
+              onMouseDown={() => {
+                setShowDropdown(false);
+                if (onSelectUser) onSelectUser(user);
+              }}
               onMouseEnter={() => setHighlighted(idx)}
             >
               <img
@@ -113,8 +134,9 @@ const UserSearch: React.FC = () => {
                 className="w-8 h-8 rounded-full mr-3"
               />
               <div className="flex flex-col">
-                <span className="font-medium text-sm">{user.nombre_completo || user.nombre_usuario}</span>
-                <span className="text-xs text-gray-500">@{user.nombre_usuario}</span>
+                <span className="font-medium text-sm">{highlight(user.nombre_completo || user.nombre_usuario, query)}</span>
+                <span className="text-xs text-gray-500">@{highlight(user.nombre_usuario, query)}</span>
+                {user.email && <span className="text-xs text-gray-400">{highlight(user.email, query)}</span>}
               </div>
             </div>
           ))}
@@ -129,5 +151,4 @@ const UserSearch: React.FC = () => {
   );
 };
 
-export default UserSearch;
 export { UserSearch };

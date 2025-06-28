@@ -7,6 +7,9 @@ import { supabase } from '../../lib/supabase';
 import { AddPortfolioItemForm } from './AddPortfolioItemForm';
 import { AddGalleryItemForm } from './AddGalleryItemForm';
 import UserQuickActions from './UserQuickActions';
+import SuggestionsToFollow from './SuggestionsToFollow';
+import Modal from '../ui/Modal';
+import DiscoverPage from '../../pages/DiscoverPage';
 
 interface ProfileViewProps {
   onEdit?: () => void;
@@ -40,9 +43,12 @@ interface Follower {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) => {
-  const { user: currentUser, logout } = useAuthStore();
+  const { user: currentUser, logout } = useAuthStore((state) => ({
+    user: state.user,
+    logout: state.logout
+  }), (a, b) => a.user?.id === b.user?.id && a.user?.username === b.user?.username && a.user?.displayName === b.user?.displayName);
   const [profileUser, setProfileUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'gallery' | 'followers' | 'about'>('portfolio');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'gallery' | 'followers' | 'following' | 'about'>('portfolio');
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [followers, setFollowers] = useState<Follower[]>([]);
@@ -53,6 +59,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
   const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showDiscoverModal, setShowDiscoverModal] = useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   // Cerrar menú al hacer click fuera
@@ -105,21 +112,27 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
       setGallery(galleryData || []);
 
       // Seguidores
-      const { data: followersData } = await supabase.rpc('get_user_followers', { user_id: userData.id });
+      const { data: followersData } = await supabase
+        .from('followers')
+        .select('follower_id, usuarios:usuarios!followers_follower_id_fkey(id, nombre_usuario, nombre_completo, avatar_url)')
+        .eq('following_id', userData.id);
       setFollowers((followersData || []).map((f: any) => ({
-        id: f.id,
-        username: f.nombre_usuario,
-        displayName: f.nombre_completo,
-        avatar: f.avatar_url
+        id: f.usuarios.id,
+        username: f.usuarios.nombre_usuario,
+        displayName: f.usuarios.nombre_completo,
+        avatar: f.usuarios.avatar_url
       })));
 
       // Siguiendo
-      const { data: followingData } = await supabase.rpc('get_user_following', { user_id: userData.id });
+      const { data: followingData } = await supabase
+        .from('followers')
+        .select('following_id, usuarios:usuarios!followers_following_id_fkey(id, nombre_usuario, nombre_completo, avatar_url)')
+        .eq('follower_id', userData.id);
       setFollowing((followingData || []).map((f: any) => ({
-        id: f.id,
-        username: f.nombre_usuario,
-        displayName: f.nombre_completo,
-        avatar: f.avatar_url
+        id: f.usuarios.id,
+        username: f.usuarios.nombre_usuario,
+        displayName: f.usuarios.nombre_completo,
+        avatar: f.usuarios.avatar_url
       })));
 
       // ¿El usuario actual sigue a este perfil?
@@ -131,6 +144,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
           .eq('following_id', userData.id)
           .single();
         setIsFollowing(!!followRow);
+      } else if (currentUser && userData.id === currentUser.id) {
+        // Si es tu propio perfil, siempre isFollowing = false
+        setIsFollowing(false);
       } else {
         setIsFollowing(false);
       }
@@ -144,8 +160,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
 
   useEffect(() => {
     loadUserData();
-    // eslint-disable-next-line
-  }, [userId, username, currentUser]);
+    // Ahora recarga si cambia userId, username o los campos clave del usuario autenticado
+  }, [userId, username, currentUser?.id, currentUser?.username, currentUser?.displayName]);
 
   // Funciones seguir/dejar de seguir
   const handleFollow = async () => {
@@ -224,36 +240,39 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
       case 'gallery':
         return (
           <div className="mt-4 space-y-3">
-            {gallery.map((item) => (
-              <motion.div 
-                key={item.id}
-                className="card"
-                whileHover={{ y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="aspect-video rounded-lg overflow-hidden mb-2">
-                  <img 
-                    src={item.image_url} 
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="font-medium">{item.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {item.location}, {new Date(item.date).toLocaleDateString()}
-                </p>
-              </motion.div>
-            ))}
-            {(!userId || userId === currentUser?.id) && (
-              <Link to="/gallery/new" className="block" tabIndex={0} aria-label="Agregar nueva exposición">
-                <motion.div
+            {gallery.length === 0 ? (
+              <div className="text-center text-gray-400 dark:text-gray-500 py-8">No hay exposiciones en la galería.</div>
+            ) : (
+              gallery.map((item) => (
+                <motion.div 
+                  key={item.id}
+                  className="card"
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.2 }}
-                  className="card p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 text-center focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <span className="text-gray-400 dark:text-gray-600">+ Agregar nueva exposición</span>
+                  <div className="aspect-video rounded-lg overflow-hidden mb-2">
+                    <img 
+                      src={item.image_url} 
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 className="font-medium">{item.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {item.location}, {new Date(item.date).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.description}</p>
                 </motion.div>
-              </Link>
+              ))
+            )}
+            {(!userId || userId === currentUser?.id) && (
+              <button
+                onClick={() => setShowAddGalleryModal(true)}
+                className="w-full mt-4 py-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                aria-label="Agregar nueva exposición"
+              >
+                + Agregar nueva exposición
+              </button>
             )}
           </div>
         );
@@ -301,17 +320,78 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
                   </motion.div>
                 );
               })}
-              <Link to="/discover" className="block">
-                <motion.div
+              <button
+                type="button"
+                className="block w-full mt-4 p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 text-center text-gray-400 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onClick={() => setShowDiscoverModal(true)}
+              >
+                Descubrir más creadores
+              </button>
+              <Modal open={showDiscoverModal} onClose={() => setShowDiscoverModal(false)}>
+                <div className="p-2 sm:p-4">
+                  <DiscoverPage />
+                </div>
+              </Modal>
+            </div>
+          </div>
+        );
+      case 'following':
+        return (
+          <div className="mt-4">
+            <div className="flex justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Siguiendo · {following.length}
+              </h3>
+              <Link to="/profile/following" className="text-sm text-primary-600 dark:text-primary-400">
+                Ver todos
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {following.map(user => (
+                <motion.div 
+                  key={user.id}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   whileHover={{ x: 2 }}
                   transition={{ duration: 0.2 }}
-                  className="p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 text-center"
                 >
-                  <span className="text-gray-400 dark:text-gray-600">
-                    Descubrir más creadores
-                  </span>
+                  <Link to={`/profile/${user.username}`} className="flex items-center">
+                    <div className="avatar h-10 w-10 mr-3">
+                      <img 
+                        src={user.avatar} 
+                        alt={user.displayName}
+                        className="avatar-img"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {user.displayName}
+                      </h4>
+                      <p className="text-xs text-gray-500">@{user.username}</p>
+                    </div>
+                  </Link>
+                  <UserQuickActions
+                    user={user}
+                    initialIsFollowing={true}
+                    onFollowChange={() => loadUserData()}
+                  />
                 </motion.div>
-              </Link>
+              ))}
+              <button
+                type="button"
+                className="block w-full mt-4 p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 text-center text-gray-400 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onClick={() => setShowDiscoverModal(true)}
+              >
+                Descubrir más creadores
+              </button>
+              <Modal open={showDiscoverModal} onClose={() => setShowDiscoverModal(false)}>
+                <div className="p-2 sm:p-4">
+                  <DiscoverPage />
+                </div>
+              </Modal>
+            </div>
+            {/* Sugerencias para descubrir personas */}
+            <div className="mt-8">
+              <SuggestionsToFollow />
             </div>
           </div>
         );
@@ -413,9 +493,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
               </button>
             )}
             <Link
-              to="/direct-messages"
+              to={`/direct-messages?to=${profileUser.id}&name=${encodeURIComponent(profileUser.nombre_completo || profileUser.nombre_usuario)}&avatar=${encodeURIComponent(profileUser.avatar_url || '/default-avatar.png')}`}
               className="btn btn-ghost text-sm flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500"
-              aria-label={`Enviar mensaje a ${profileUser.displayName || profileUser.username}`}
+              aria-label={`Enviar mensaje a ${profileUser.nombre_completo || profileUser.nombre_usuario}`}
             >
               <MessageCircle className="h-4 w-4 mr-1" />Mensaje
             </Link>
@@ -465,6 +545,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, userId, username }) =
             { id: 'portfolio', label: 'Portfolio', icon: <Camera className="h-4 w-4" /> },
             { id: 'gallery', label: 'Galería', icon: <BookOpen className="h-4 w-4" /> },
             { id: 'followers', label: 'Seguidores', icon: <Users className="h-4 w-4" /> },
+            { id: 'following', label: 'Siguiendo', icon: <Users className="h-4 w-4" /> },
             { id: 'about', label: 'Perfil', icon: <UserIcon className="h-4 w-4" /> }
           ].map(tab => (
             <button

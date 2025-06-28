@@ -9,18 +9,23 @@ interface LoadingSpinnerProps {
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
   size = 'md', 
   fullScreen = false,
-  message = 'Loading...'
+  message = 'Cargando...'
 }) => {
   const sizeMap = {
-    sm: 'h-5 w-5',
-    md: 'h-8 w-8',
-    lg: 'h-12 w-12'
+    sm: 'h-8 w-8',
+    md: 'h-16 w-16',
+    lg: 'h-24 w-24'
   };
 
   const spinner = (
     <div className="flex flex-col items-center justify-center">
-      <div className={`${sizeMap[size]} animate-spin rounded-full border-4 border-gray-300 border-t-primary-600`}></div>
-      {message && <p className="mt-2 text-gray-600 dark:text-gray-400">{message}</p>}
+      <img
+        src="/vite.svg"
+        alt="loading"
+        className={sizeMap[size]}
+        style={{ filter: 'drop-shadow(0 0 6px #2563eb88)' }}
+      />
+      {message && <p className="mt-2 text-primary-700 dark:text-primary-300 font-semibold animate-pulse">{message}</p>}
     </div>
   );
 

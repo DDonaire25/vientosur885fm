@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { CheckSquare, Clock, User, MoreHorizontal } from 'lucide-react';
-  const [showMenuId, setShowMenuId] = useState<string | null>(null);
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -22,6 +21,7 @@ const COLUMNS = [
 ] as const;
 
 export const TareaCulturalKanban: React.FC = () => {
+  const [showMenuId, setShowMenuId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -26,6 +26,8 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
+let heartbeatInterval: NodeJS.Timeout | null = null;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
@@ -40,13 +42,35 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (signInError) throw signInError;
 
-      const { data: dbUser, error: dbError } = await supabase
+      // Buscar usuario en la tabla usuarios
+      let { data: dbUser, error: dbError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('id', authUser?.id)
         .single();
 
-      if (dbError) throw dbError;
+      // Si no existe, crearlo automáticamente
+      if (dbError && dbError.code === 'PGRST116') {
+        const { data: newUser, error: insertError } = await supabase
+          .from('usuarios')
+          .insert([
+            {
+              id: authUser?.id,
+              email: authUser?.email,
+              nombre_usuario: authUser?.user_metadata?.username || authUser?.email?.split('@')[0] || '',
+              nombre_completo: authUser?.user_metadata?.full_name || authUser?.email || '',
+              avatar_url: authUser?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${authUser?.email}`,
+              disciplines: [],
+              social_links: []
+            }
+          ])
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        dbUser = newUser;
+      } else if (dbError) {
+        throw dbError;
+      }
 
       set({
         user: {
@@ -64,7 +88,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         isLoading: false
       });
-
+      // Marcar usuario como online y empezar heartbeat
+      if (dbUser?.id) {
+        await supabase.from('usuarios').update({ last_online: new Date().toISOString() }).eq('id', dbUser.id);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(async () => {
+          await supabase.from('usuarios').update({ last_online: new Date().toISOString() }).eq('id', dbUser.id);
+        }, 60000); // cada 60 segundos
+      }
       toast.success('¡Bienvenido de nuevo!');
     } catch (error) {
       toast.error('Error al iniciar sesión');
@@ -127,6 +158,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try {
+      const user = useAuthStore.getState().user;
+      if (user?.id) {
+        await supabase.from('usuarios').update({ last_online: new Date().toISOString() }).eq('id', user.id);
+      }
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -180,12 +217,34 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: null, isAuthenticated: false, isLoading: false });
       return;
     }
-    const { data: dbUser, error: dbError } = await supabase
+    let { data: dbUser, error: dbError } = await supabase
       .from('usuarios')
       .select('*')
       .eq('id', data.user.id)
       .single();
-    if (dbError) {
+    // Si no existe, crearlo automáticamente
+    if (dbError && dbError.code === 'PGRST116') {
+      const { data: newUser, error: insertError } = await supabase
+        .from('usuarios')
+        .insert([
+          {
+            id: data.user.id,
+            email: data.user.email,
+            nombre_usuario: data.user.user_metadata?.username || data.user.email?.split('@')[0] || '',
+            nombre_completo: data.user.user_metadata?.full_name || data.user.email || '',
+            avatar_url: data.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${data.user.email}`,
+            disciplines: [],
+            social_links: []
+          }
+        ])
+        .select()
+        .single();
+      if (insertError) {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+        return;
+      }
+      dbUser = newUser;
+    } else if (dbError) {
       set({ user: null, isAuthenticated: false, isLoading: false });
       return;
     }

@@ -51,6 +51,7 @@ const PostDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto p-4">
+      <button onClick={() => navigate('/')} className="text-primary-600 dark:text-primary-400 hover:underline mb-4">← Volver a inicio</button>
       <PostCard post={post} disableCardNavigation onDeleted={() => navigate('/')} />
     </div>
   );

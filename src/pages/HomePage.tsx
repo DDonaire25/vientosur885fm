@@ -7,6 +7,8 @@ import { useEventStore } from '../store/eventStore';
 import EventoCulturalCard from '../components/cultural/EventoCulturalCard';
 import CreateEventForm from '../components/calendar/CreateEventForm';
 import { Event } from '../store/eventStore';
+import StoriesPage from './StoriesPage';
+import SuggestionsToFollow from '../components/profile/SuggestionsToFollow';
 
 const FEED_MODES = [
   { label: 'Para ti', value: 'feed' },
@@ -18,7 +20,6 @@ const HomePage = () => {
   const { events, isLoading: isLoadingEvents, fetchEvents } = useEventStore();
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [feedMode, setFeedMode] = useState<'feed' | 'timeline'>('feed');
-  const [eventMode] = useState<'feed' | 'timeline'>('feed');
   // Estados locales para manipulación inmediata de UI
   const [localPosts, setLocalPosts] = useState(posts);
   const [localEvents, setLocalEvents] = useState(events);
@@ -35,43 +36,74 @@ const HomePage = () => {
     fetchEvents();
   }, [fetchPosts, fetchEvents]);
 
-  // Handler genérico para compartir cualquier contenido
-  // const handleShare = (type: 'post' | 'event', item: any) => {
-  //   let url = window.location.origin;
-  //   let title = '';
-  //   let text = '';
-  //   if (type === 'post') {
-  //     url += '/posts/' + item.id;
-  //     title = item.content?.slice(0, 60) || 'Post de Red Viento Sur';
-  //     text = item.content;
-  //   } else if (type === 'event') {
-  //     url += '/eventos/' + item.id;
-  //     title = item.titulo || item.title || 'Evento cultural';
-  //     text = item.descripcion || item.description || '';
-  //   }
-  //   if (navigator.share) {
-  //     navigator.share({ title, text, url }).catch(() => {});
-  //   } else {
-  //     navigator.clipboard.writeText(url);
-  //     toast.success('¡Enlace copiado!');
-  //   }
-  // };
+  // Simulación de cumpleaños (puedes reemplazar por tu fuente real)
+  const [localBirthdays] = useState<any[]>([
+    // Ejemplo:
+    // { id: 'b1', name: 'Juan Pérez', date: '2025-06-01' },
+  ]);
 
+  // Unificar feed: posts, eventos y cumpleaños
+  const unifiedFeed = [
+    ...localPosts.map(post => ({
+      type: 'post',
+      date: new Date(post.createdAt),
+      post
+    })),
+    ...localEvents
+      .filter(event => event.date && !isNaN(new Date(event.date).getTime()))
+      .map(event => ({
+        type: 'event',
+        date: new Date(event.date),
+        event
+      })),
+    ...localBirthdays.map(birthday => ({
+      type: 'birthday',
+      date: new Date(birthday.date),
+      birthday
+    }))
+  ];
 
+  // Ordenar según modo
+  const sortedFeed = feedMode === 'feed'
+    ? unifiedFeed.slice().sort((a, b) => {
+        if (a.type === 'post' && b.type === 'post' && 'post' in a && 'post' in b) {
+          return b.post.likes.length - a.post.likes.length;
+        }
+        // Si solo uno es post, el post va primero
+        if (a.type === 'post') return -1;
+        if (b.type === 'post') return 1;
+        // Si ambos no son post, ordenar por fecha
+        return b.date.getTime() - a.date.getTime();
+      })
+    : unifiedFeed.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="space-y-4">
-      <CreatePostForm onSuccess={() => {
-        setTimeout(() => {
-          const firstPost = document.querySelector('.feed-item');
-          if (firstPost) firstPost.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      }} />
-
+    <div className="w-full pb-24 bg-white dark:bg-gray-900">
+      {/* Stories Circles en la parte superior */}
+      <StoriesPage />
+      {/* Formulario para crear post */}
+      <div className="w-full">
+        <CreatePostForm 
+          onSuccess={() => {
+            setTimeout(() => {
+              const firstPost = document.querySelector('.feed-item');
+              if (firstPost) firstPost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }} 
+        />
+      </div>
+      {/* Sugerencias de perfiles a seguir debajo del textarea, solo móvil */}
+      <div className="block sm:hidden mb-2 w-full">
+        <SuggestionsToFollow />
+      </div>
+      {/* Sugerencias de perfiles a seguir en escritorio */}
+      <div className="hidden sm:block w-full">
+        <SuggestionsToFollow />
+      </div>
       {/* Modal de edición de evento */}
       {editingEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 w-full max-w-lg relative">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-4 w-full max-w-lg relative animate-fade-in">
             <button
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
               onClick={() => setEditingEvent(null)}
@@ -87,13 +119,12 @@ const HomePage = () => {
                 id: editingEvent.id,
                 title: editingEvent.title,
                 description: editingEvent.description,
-                // category: editingEvent.metadata?.category || '', // Eliminar, no existe en metadata
                 event_type: editingEvent.type,
                 date: editingEvent.date.split('T')[0],
                 location: editingEvent.location,
-                target_audience: (['Infantil', 'Adultos', 'Todos'].includes(editingEvent.metadata?.target_audience ?? '')
+                target_audience: (['Infantil', 'Adultos', 'Todo Público'].includes(editingEvent.metadata?.target_audience ?? '')
                   ? editingEvent.metadata?.target_audience
-                  : undefined) as 'Infantil' | 'Adultos' | 'Todos' | undefined,
+                  : undefined) as 'Infantil' | 'Adultos' | 'Todo Público' | undefined,
                 cost: { type: 'free' },
                 responsible_person: editingEvent.metadata?.responsible_person || { name: '', phone: '' },
                 technical_requirements: editingEvent.metadata?.technical_requirements || [],
@@ -114,13 +145,12 @@ const HomePage = () => {
           </div>
         </div>
       )}
-
       {/* Selector Feed/Timeline */}
-      <div className="flex justify-center gap-4 my-4">
+      <div className="flex justify-center gap-2 my-2 sm:my-4">
         {FEED_MODES.map((mode) => (
           <button
             key={mode.value}
-            className={`px-4 py-2 rounded-full font-semibold transition-colors duration-150 ${feedMode === mode.value ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+            className={`px-3 py-1 sm:px-4 sm:py-2 rounded-full font-semibold transition-colors duration-150 text-xs sm:text-base ${feedMode === mode.value ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             onClick={() => setFeedMode(mode.value as 'feed' | 'timeline')}
             aria-pressed={feedMode === mode.value}
           >
@@ -128,79 +158,65 @@ const HomePage = () => {
           </button>
         ))}
       </div>
-
-      {/* Eventos culturales destacados */}
-      <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-4">Eventos culturales</h2>
-      {isLoadingEvents ? (
-        <div>
-          {[...Array(2)].map((_, i) => <SkeletonCard key={i} type="event" />)}
-        </div>
-      ) : localEvents.length === 0 ? (
-        <div className="card py-8 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold mb-2">No hay eventos culturales aún</p>
-          <p className="text-sm text-gray-400">¡Sé el primero en crear un evento!</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {(eventMode === 'feed'
-            ? localEvents.slice()
-            : localEvents.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          ).map(event => (
-            <EventoCulturalCard
-              key={event.id}
-              event={{
-                id: event.id,
-                titulo: event.title,
-                descripcion: event.description,
-                fecha_inicio: event.date,
-                ubicacion: event.location || '',
-                imagen_url: event.imagen_url,
-                categoria: '',
-                tipo: event.type,
-                userId: event.userId,
-                metadata: {
-                  target_audience: event.metadata?.target_audience as any || '',
-                  responsible_person: event.metadata?.responsible_person || { name: '', phone: '' },
-                  technical_requirements: event.metadata?.technical_requirements || [],
-                  tags: event.metadata?.tags || [],
-                }
-              }}
-              onEdit={() => setEditingEvent(event)}
-              onDeleted={() => {
-                setLocalEvents((prev) => prev.filter((e) => e.id !== event.id));
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Posts */}
-      <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-8">Publicaciones</h2>
-      {isLoadingPosts ? (
+      {/* Feed unificado */}
+      {(isLoadingPosts || isLoadingEvents) ? (
         <div>
           {[...Array(3)].map((_, i) => <SkeletonCard key={i} type="post" />)}
         </div>
-      ) : localPosts.length === 0 ? (
+      ) : sortedFeed.length === 0 ? (
         <div className="card py-8 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold mb-2">No hay publicaciones aún</p>
-          <p className="text-sm text-gray-400">¡Crea tu primera publicación para comenzar!</p>
+          <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold mb-2">No hay novedades aún</p>
+          <p className="text-sm text-gray-400">¡Crea tu primera publicación, evento o cumpleaños para comenzar!</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {(feedMode === 'feed'
-            ? localPosts.slice().sort((a, b) => b.likes.length - a.likes.length)
-            : localPosts.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          ).map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onDeleted={() => {
-                setLocalPosts((prev) => prev.filter((p) => p.id !== post.id));
-              }}
-            />
-          ))}
+        <div className="w-full">
+          {sortedFeed.map((item) => {
+            if (item.type === 'post' && 'post' in item) {
+              const post = item.post;
+              return (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  user={{
+                    id: post.userId,
+                    nombre: 'Usuario',
+                    avatar: '/default-avatar.png',
+                    verificado: false
+                  }}
+                  media={post.mediaUrls?.map(m => ({ url: m.url, type: 'image', aspectRatio: '1:1', name: m.name }))}
+                  text={post.content}
+                  onDeleted={() => setLocalPosts((prev) => prev.filter((p) => p.id !== post.id))}
+                />
+              );
+            }
+            if (item.type === 'event' && 'event' in item) {
+              return <EventoCulturalCard key={item.event.id} event={{
+                id: item.event.id,
+                titulo: item.event.title,
+                descripcion: item.event.description,
+                fecha_inicio: item.event.date,
+                ubicacion: item.event.location || '',
+                imagen_url: item.event.imagen_url,
+                categoria: '',
+                tipo: item.event.type,
+                userId: item.event.userId,
+                metadata: {
+                  target_audience: item.event.metadata?.target_audience as any || '',
+                  responsible_person: item.event.metadata?.responsible_person || { name: '', phone: '' },
+                  technical_requirements: item.event.metadata?.technical_requirements || [],
+                  tags: item.event.metadata?.tags || [],
+                }
+              }} onEdit={() => setEditingEvent(item.event)} onDeleted={() => setLocalEvents((prev) => prev.filter((e) => e.id !== item.event.id))} />;
+            }
+            if (item.type === 'birthday' && 'birthday' in item) {
+              return <div key={item.birthday.id} className="card feed-item rounded-none mx-0">Cumpleaños: {item.birthday.name}</div>;
+            }
+            return null;
+          })}
         </div>
       )}
+      {/* Botón flotante para escribir mensaje, igual que el de crear blog */}
+      {/* Eliminado según solicitud UX */}
     </div>
   );
 };

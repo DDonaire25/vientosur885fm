@@ -3,7 +3,6 @@ import EventoCulturalCard from "../components/cultural/EventoCulturalCard";
 import CumpleañosCard from "../components/cultural/CumpleañosCard";
 import { TareaCulturalKanban } from "../components/cultural/TareaCulturalKanban";
 import { supabase } from "../lib/supabase";
-import { format } from "date-fns";
 import { Search } from 'lucide-react';
 
 const AgendaPage: React.FC = () => {
@@ -29,17 +28,18 @@ const AgendaPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Cargar cumpleaños del día actual
+    // Cargar próximos cumpleaños (por ejemplo, próximos 30 días)
     const fetchCumpleanos = async () => {
       setLoadingCumpleanos(true);
       const today = new Date();
-      const mes = today.getMonth() + 1;
-      const dia = today.getDate();
+      const future = new Date();
+      future.setDate(today.getDate() + 30);
       const { data } = await supabase
         .from('cumpleanos')
         .select('*')
-        .filter('extract(month from fecha_nacimiento)', 'eq', mes)
-        .filter('extract(day from fecha_nacimiento)', 'eq', dia);
+        .gte('fecha_nacimiento', today.toISOString().slice(0, 10))
+        .lte('fecha_nacimiento', future.toISOString().slice(0, 10))
+        .order('fecha_nacimiento', { ascending: true });
       setCumpleanos(data || []);
       setLoadingCumpleanos(false);
     };
@@ -47,17 +47,44 @@ const AgendaPage: React.FC = () => {
   }, []);
 
   // Filtrar eventos por búsqueda y fecha
-  const eventosFiltrados = eventos.filter(event => {
-    const matchNombre = event.titulo?.toLowerCase().includes(search.toLowerCase());
-    const matchFecha = filterDate ? format(new Date(event.fecha_inicio), 'yyyy-MM-dd') === filterDate : true;
-    return matchNombre && matchFecha;
-  });
+  // const eventosFiltrados = eventos.filter(event => {
+  //   const matchNombre = event.titulo?.toLowerCase().includes(search.toLowerCase());
+  //   const matchFecha = filterDate ? format(new Date(event.fecha_inicio), 'yyyy-MM-dd') === filterDate : true;
+  //   return matchNombre && matchFecha;
+  // });
+
+  // Unificar feed de cumpleaños y eventos
+  const feed = [
+    ...cumpleanos.map(c => ({
+      ...c,
+      __type: 'cumple',
+      fecha: c.fecha_nacimiento
+    })),
+    ...eventos.map(e => ({
+      ...e,
+      __type: 'evento',
+      fecha: e.fecha_inicio
+    }))
+  ].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+
+  // Actualiza un cumpleaños editado en el array sin recargar todo
+  const handleCumpleEdited = (cumpleActualizado: any) => {
+    setCumpleanos(prev => prev.map(c => c.id === cumpleActualizado.id ? { ...c, ...cumpleActualizado } : c));
+  };
+
+  // Actualiza un evento editado en el array sin recargar todo
+  const handleEventoEdited = (eventoActualizado: any) => {
+    setEventos(prev => prev.map(e => e.id === eventoActualizado.id ? { ...e, ...eventoActualizado } : e));
+  };
 
   return (
-    <main className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Agenda</h1>
-      <div className="flex flex-col md:flex-row gap-4 mb-6 items-center justify-between">
-        <div className="flex-1 flex flex-col md:flex-row gap-4">
+    <main className="w-full min-h-screen bg-white dark:bg-gray-900 p-0">
+      <header className="py-4 sm:py-8 text-center">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-primary-700 dark:text-primary-300 drop-shadow-sm mb-2">Agenda cultural</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg">Consulta y programa eventos, cumpleaños y tareas de la comunidad</p>
+      </header>
+      <div className="flex flex-col md:flex-row gap-2 sm:gap-4 mb-4 sm:mb-8 items-center justify-between">
+        <div className="flex-1 flex flex-col md:flex-row gap-2 sm:gap-4 w-full">
           <div className="relative w-full md:w-1/2">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <Search className="h-5 w-5" />
@@ -67,7 +94,7 @@ const AgendaPage: React.FC = () => {
               placeholder="Buscar evento..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-10 pr-3 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full transition shadow-sm"
+              className="pl-10 pr-3 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full transition shadow-sm text-sm sm:text-base"
               aria-label="Buscar evento"
             />
           </div>
@@ -76,7 +103,7 @@ const AgendaPage: React.FC = () => {
               type="date"
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              className="px-3 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full transition shadow-sm"
+              className="px-3 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full transition shadow-sm text-sm sm:text-base"
               aria-label="Filtrar por fecha"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
@@ -84,10 +111,10 @@ const AgendaPage: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="mt-4 md:mt-0">
+        <div className="mt-2 sm:mt-4 md:mt-0 w-full md:w-auto flex justify-end">
           <button
             onClick={() => window.location.href = '/calendar'}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary-600 text-white font-semibold shadow hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full bg-primary-600 text-white font-semibold shadow-lg hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm sm:text-base"
             aria-label="Programar evento"
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" d="M12 5v14m7-7H5"/></svg>
@@ -95,47 +122,41 @@ const AgendaPage: React.FC = () => {
           </button>
         </div>
       </div>
-      <section aria-labelledby="eventos-culturales" className="mb-8">
-        <h2 id="eventos-culturales" className="text-xl font-semibold mb-4">Eventos culturales</h2>
-        {loadingEventos ? (
-          <div>Cargando eventos...</div>
-        ) : eventosFiltrados.length === 0 ? (
-          <div>No hay eventos culturales.</div>
+      <section aria-labelledby="feed" className="mb-8 sm:mb-12">
+        <h2 id="feed" className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-primary-700 dark:text-primary-300">Próximos eventos y cumpleaños</h2>
+        {loadingEventos || loadingCumpleanos ? (
+          <div className="text-center text-base sm:text-lg text-gray-500 py-8">Cargando...</div>
+        ) : feed.length === 0 ? (
+          <div className="text-center text-gray-400 py-8">No hay eventos ni cumpleaños próximos.</div>
         ) : (
-          eventosFiltrados.map(event => (
-            <EventoCulturalCard
-              key={event.id}
-              event={event}
-              onDeleted={() => {
-                // Eliminar el evento del estado local para que desaparezca de la lista
-                setEventos(prev => prev.filter(e => e.id !== event.id));
-              }}
-            />
-          ))
-        )}
-      </section>
-      <section aria-labelledby="cumpleanos" className="mb-8">
-        <h2 id="cumpleanos" className="text-xl font-semibold mb-4">Cumpleaños</h2>
-        {loadingCumpleanos ? (
-          <div>Cargando cumpleaños...</div>
-        ) : cumpleanos.length === 0 ? (
-          <div>No hay cumpleaños hoy.</div>
-        ) : (
-          cumpleanos.map(birthday => (
-            <CumpleañosCard
-              key={birthday.id}
-              birthday={birthday}
-              onDeleted={() => {
-                // Eliminar el cumpleaños del estado local para que desaparezca de la lista
-                setCumpleanos(prev => prev.filter(c => c.id !== birthday.id));
-              }}
-            />
-          ))
+          <div className="space-y-3 sm:space-y-6">
+            {feed.map(item =>
+              item.__type === 'cumple' ? (
+                <div className="shadow rounded-lg sm:rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-0" key={item.id}>
+                  <CumpleañosCard
+                    birthday={item}
+                    onDeleted={() => setCumpleanos(prev => prev.filter(c => c.id !== item.id))}
+                    onEdit={handleCumpleEdited}
+                  />
+                </div>
+              ) : (
+                <div className="shadow rounded-lg sm:rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-0" key={item.id}>
+                  <EventoCulturalCard
+                    event={item}
+                    onDeleted={() => setEventos(prev => prev.filter(e => e.id !== item.id))}
+                    onEdit={() => handleEventoEdited(item)}
+                  />
+                </div>
+              )
+            )}
+          </div>
         )}
       </section>
       <section aria-labelledby="tareas" className="mb-8">
-        <h2 id="tareas" className="text-xl font-semibold mb-4">Tareas</h2>
-        <TareaCulturalKanban />
+        <h2 id="tareas" className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-primary-700 dark:text-primary-300">Tareas</h2>
+        <div className="shadow rounded-lg sm:rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2 sm:p-4">
+          <TareaCulturalKanban />
+        </div>
       </section>
     </main>
   );

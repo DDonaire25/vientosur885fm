@@ -34,12 +34,30 @@ const FavoritesPage = () => {
             <PostCard
               key={post.id}
               post={post}
-              onDeleted={() => {
-                // Eliminar el post de favoritos al borrarlo
-                // Si tienes un método para actualizar favoritos, úsalo aquí
-                // Por simplicidad, recarga los favoritos
-                fetchPosts();
+              user={{
+                nombre: post.autor?.displayName || 'Usuario',
+                avatar: post.autor?.avatar || '/default-avatar.png',
+                verificado: post.autor?.verificado || false
               }}
+              date={post.createdAt}
+              media={post.mediaUrls}
+              text={post.content}
+              backgroundColor={post.backgroundColor}
+              linkData={post.linkData}
+              pollData={post.pollData}
+              stats={{
+                likes: post.likes?.length || 0,
+                comentarios: post.comments?.length || 0,
+                compartidos: post.shares || 0,
+                votos: post.pollData?.totalVotes || 0
+              }}
+              onLike={() => usePostStore.getState().toggleLike(post.id, post.userId)}
+              onComment={() => {}}
+              onShare={() => {}}
+              onVote={() => {}}
+              actions={[]}
+              onFavorite={() => usePostStore.getState().toggleFavorite(post.id)}
+              onDeleted={() => fetchPosts()}
             />
           ))}
         </div>

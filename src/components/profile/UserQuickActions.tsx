@@ -61,7 +61,7 @@ const UserQuickActions: React.FC<UserQuickActionsProps> = ({ user, initialIsFoll
 
   // Enviar mensaje directo (redirección)
   const handleSendMessage = () => {
-    navigate('/direct-messages');
+    navigate(`/direct-messages?to=${user.id}&name=${encodeURIComponent(user.displayName || user.username)}&avatar=${encodeURIComponent(user.avatar || '/default-avatar.png')}`);
   };
 
   return (

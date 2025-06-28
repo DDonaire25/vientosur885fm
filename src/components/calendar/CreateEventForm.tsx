@@ -40,14 +40,14 @@ const eventSchema = z.object({
   event_type: z.string().min(1, 'Selecciona un tipo de evento'),
   date: z.string().min(1, 'La fecha es requerida'),
   location: z.string().min(3, 'La ubicación es requerida'),
-  target_audience: z.enum(['Infantil', 'Adultos', 'Todos']),
+  target_audience: z.enum(['Infantil', 'Adultos', 'Todo Público']),
   cost: z.object({
     type: z.enum(['free', 'paid']),
     amount: z.number().optional()
   }),
   responsible_person: z.object({
-    name: z.string().min(3, 'El nombre es requerido'),
-    phone: z.string().min(6, 'El teléfono es requerido'),
+    name: z.string().min(3, 'El nombre es requerido').optional(),
+    phone: z.string().min(6, 'El teléfono es requerido').optional(),
     social_media: z.string().optional()
   }),
   technical_requirements: z.array(z.string()).default([]),
@@ -59,10 +59,23 @@ const eventSchema = z.object({
 type EventSchema = z.infer<typeof eventSchema>;
 
 interface CreateEventFormProps {
-  date: Date;
   onSuccess: () => void;
   onCancel: () => void;
-  initialData?: Partial<EventSchema> & { id?: string };
+  date?: Date;
+  initialData?: any;
+}
+
+interface ResponsiblePerson {
+  name?: string;
+  phone?: string;
+  social_media?: string;
+}
+
+interface Recurrence {
+  type?: string;
+  interval?: number;
+  end_date?: string;
+  days_of_week?: number[];
 }
 
 interface EventData {
@@ -78,19 +91,10 @@ interface EventData {
   precio: number;
   metadata: {
     target_audience: string;
-    responsible_person: {
-      name: string;
-      phone: string;
-      social_media?: string;
-    };
+    responsible_person: ResponsiblePerson;
     technical_requirements: string[];
     tags: string[];
-    recurrence: {
-      type: string;
-      interval?: number;
-      end_date?: string;
-      days_of_week?: number[];
-    };
+    recurrence: Recurrence;
   };
 }
 
@@ -103,13 +107,13 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ date, onSuccess, onCa
     resolver: zodResolver(eventSchema),
     defaultValues: initialData ? {
       ...initialData,
-      date: initialData.date || date.toISOString().split('T')[0],
+      date: initialData.date || date?.toISOString().split('T')[0],
       cost: initialData.cost || { type: 'free' },
       technical_requirements: initialData.technical_requirements || [],
       tags: initialData.tags || [],
       recurrence: initialData.recurrence || { type: 'none' }
     } : {
-      date: date.toISOString().split('T')[0],
+      date: date?.toISOString().split('T')[0],
       cost: { type: 'free' },
       technical_requirements: [],
       tags: [],
@@ -121,7 +125,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ date, onSuccess, onCa
     if (initialData) {
       reset({
         ...initialData,
-        date: initialData.date || date.toISOString().split('T')[0],
+        date: initialData.date || date?.toISOString().split('T')[0],
         cost: initialData.cost || { type: 'free' },
         technical_requirements: initialData.technical_requirements || [],
         tags: initialData.tags || [],
@@ -158,7 +162,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ date, onSuccess, onCa
     return urlData.publicUrl;
   };
 
-  const handleImageChange = async (file: File | undefined) => {
+  const handleImageChange = async (file: File | null) => {
     setImageSelected(!!file);
     if (!file) {
       setValue('image_url', undefined);
@@ -369,7 +373,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ date, onSuccess, onCa
             {...register('target_audience')}
             className="input w-full"
           >
-            <option value="Todos">Todos</option>
+            <option value="Todo Público">Todo Público</option>
             <option value="Infantil">Infantil</option>
             <option value="Adultos">Adultos</option>
           </select>
