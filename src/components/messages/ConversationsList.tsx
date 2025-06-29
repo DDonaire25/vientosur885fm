@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 import Modal from '../ui/Modal';
 import { UserSearch } from '../profile/UserSearch';
+import { FiMessageCircle, FiTrash, FiArchive } from 'react-icons/fi';
 
 interface ConversationsListProps {
   onSelectUser: (userId: string, userName: string, userAvatar: string) => void;
@@ -23,6 +24,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
   const swipeStartX = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Handler para seleccionar conversación de la lista
   const handleSelectConv = (u: any) => {
@@ -53,21 +55,75 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
     return () => { if (el) el.removeEventListener('scroll', handleScroll); };
   }, [loading, hasMore, conversations.length, limit]);
 
+  // Filtrar conversaciones activas y archivadas
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
+  useEffect(() => {
+    async function fetchBlocked() {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('blocked_id')
+        .eq('blocker_id', user.id);
+      if (!error && data) {
+        setBlockedIds(data.map((b: any) => b.blocked_id));
+      }
+    }
+    fetchBlocked();
+  }, [user]);
+
+  const [blockedByIds, setBlockedByIds] = useState<string[]>([]);
+  useEffect(() => {
+    async function fetchBlockedBy() {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('blocker_id, blocked_id')
+        .eq('blocked_id', user.id);
+      if (!error && data) {
+        setBlockedByIds(data.map((b: any) => b.blocker_id));
+      }
+    }
+    fetchBlockedBy();
+  }, [user]);
+
+  const activeConversations = conversations.filter((c: any) => {
+    if (!user) return false;
+    const otherId = c.user2 === user.id ? c.user1 : c.user2;
+    return !c.archived && !blockedIds.includes(otherId) && !blockedByIds.includes(otherId);
+  });
+  const archivedConversations = conversations.filter((c: any) => {
+    if (!user) return false;
+    const otherId = c.user2 === user.id ? c.user1 : c.user2;
+    return c.archived && !blockedIds.includes(otherId) && !blockedByIds.includes(otherId);
+  });
+
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 relative">
       {/* Header con nombre de usuario y botón nuevo mensaje */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 sticky top-0 z-10">
         <span className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate max-w-[60%]">{user?.displayName || user?.username || 'Usuario'}</span>
-        <button
-          className="inline-flex items-center justify-center p-2 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-primary-600 hover:text-white transition"
-          title="Nuevo mensaje"
-          aria-label="Nuevo mensaje"
-          onClick={() => setShowUserSearch(true)}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z" /></svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="inline-flex items-center justify-center p-2 rounded-full bg-gradient-to-tr from-pink-500 via-purple-500 to-blue-500 text-white shadow hover:scale-105 transition"
+            title="Nuevo mensaje"
+            aria-label="Nuevo mensaje"
+            onClick={() => setShowUserSearch(true)}
+          >
+            <FiMessageCircle className="w-5 h-5" />
+          </button>
+          {archivedConversations.length > 0 && (
+            <button
+              className="inline-flex items-center justify-center p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition"
+              title={showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}
+              aria-label={showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}
+              onClick={() => setShowArchived(v => !v)}
+            >
+              <FiArchive className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
-      <Modal open={showUserSearch} onClose={() => setShowUserSearch(false)}>
+      <Modal open={showUserSearch} onClose={() => setShowUserSearch(false)} className="w-[50vw]">
         <div className="p-4">
           <h2 className="font-bold mb-2 text-lg text-center">Buscar usuario para chatear</h2>
           <UserSearch onSelectUser={handleUserSearchSelect} />
@@ -78,12 +134,61 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
         <AnimatePresence initial={false}>
         {loading ? (
           <div className="p-4">Cargando conversaciones...</div>
-        ) : conversations.length === 0 ? (
+        ) : showArchived ? (
+          archivedConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 gap-4">
+              <span className="text-gray-400 text-center">No tienes conversaciones archivadas.</span>
+            </div>
+          ) : (
+            archivedConversations
+              .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime())
+              .map((u) => (
+                <motion.div
+                  key={u.id}
+                  data-testid="archived-conversation-item"
+                  className="relative px-3 py-2 flex items-center gap-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-2"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <span className="relative inline-block">
+                    <img src={u.avatar} alt={u.displayName} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-sm truncate text-gray-900 dark:text-gray-100">{u.displayName}</span>
+                  </div>
+                  <button
+                    className="ml-2 p-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    title={`Desarchivar conversación con ${u.displayName}`}
+                    aria-label={`Desarchivar conversación con ${u.displayName}`}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const { error } = await supabase
+                          .from('conversations')
+                          .update({ archived: false })
+                          .eq('id', u.id);
+                        if (error) throw error;
+                        await fetchConversations();
+                        toast.success('Conversación desarchivada');
+                      } catch {
+                        toast.error('Error al desarchivar la conversación');
+                      }
+                    }}
+                    type="button"
+                  >
+                    <FiArchive className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              ))
+          )
+        ) : activeConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 gap-4" data-testid="no-conversations">
             <span className="text-gray-400 text-center">No tienes conversaciones aún.</span>
           </div>
         ) : (
-          conversations
+          activeConversations
             .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime())
             .slice(0, limit)
             .map((u) => (
@@ -126,8 +231,28 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
                         }
                       }
                     } else if (swipeX > 80) {
-                      // Swipe a la derecha: archivar (simulado)
-                      toast('Conversación archivada (demo)');
+                      // Swipe a la derecha: archivar REAL
+                      if (user) {
+                        try {
+                          // Buscar la conversación entre ambos usuarios
+                          const { data: conv, error: convError } = await supabase
+                            .from('conversations')
+                            .select('id, archived')
+                            .or(`and(user1.eq.${user.id},user2.eq.${u.id}),and(user1.eq.${u.id},user2.eq.${user.id})`)
+                            .maybeSingle();
+                          if (convError) throw convError;
+                          if (!conv) throw new Error('No se encontró la conversación');
+                          const { error: updateError } = await supabase
+                            .from('conversations')
+                            .update({ archived: true })
+                            .eq('id', conv.id);
+                          if (updateError) throw updateError;
+                          await fetchConversations();
+                          toast.success('Conversación archivada');
+                        } catch (err) {
+                          toast.error('Error al archivar la conversación');
+                        }
+                      }
                     }
                     setSwipeX(0);
                     setSwipeId(null);
@@ -177,12 +302,12 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
                   }}
                   type="button"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  <FiTrash className="w-4 h-4" />
                 </button>
                 {/* Indicador visual de swipe */}
                 {swipeId === u.id && Math.abs(swipeX) > 40 && (
                   <span className={`absolute inset-y-0 ${swipeX < 0 ? 'right-4 text-red-600' : 'left-4 text-blue-600'} flex items-center text-lg font-bold pointer-events-none`}>
-                    {swipeX < 0 ? 'Eliminar' : 'Archivar'}
+                    {swipeX < 0 ? <FiTrash className="inline w-5 h-5 mr-1" /> : <FiArchive className="inline w-5 h-5 mr-1" />} {swipeX < 0 ? 'Eliminar' : 'Archivar'}
                   </span>
                 )}
               </motion.div>
