@@ -21,7 +21,6 @@ const StoriesPage = lazy(() => import('./pages/StoriesPage'));
 const StreamsPage = lazy(() => import('./pages/StreamsPage'));
 const NewBlogPage = lazy(() => import('./pages/NewBlogPage'));
 const UserSearch = lazy(() => import('./components/profile/UserSearch').then(m => ({ default: m.UserSearch })));
-const DirectMessagesPage = lazy(() => import('./pages/DirectMessagesPage'));
 const AgendaPage = lazy(() => import('./pages/AgendaPage'));
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage'));
 const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'));
@@ -70,7 +69,6 @@ const AppRoutes = () => {
           <Route path="streams" element={<StreamsPage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="/buscar-usuarios" element={<Suspense fallback={<LoadingSpinner />}><div style={{padding: 24}}><UserSearch /></div></Suspense>} />
-          <Route path="/direct-messages" element={<DirectMessagesPage />} />
           <Route path="/posts/:id" element={<PostDetailPage />} />
           <Route path="blogs/:id" element={<BlogDetailPage />} />
           <Route path="eventos/:id" element={<CulturalEventDetailPage />} />

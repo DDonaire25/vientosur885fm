@@ -42,7 +42,7 @@ const Modal: React.FC<ModalProps> = ({ open, onClose, children, className }) => 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
       <div
         ref={modalRef}
-        className={`bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg w-full mx-2 p-0 relative animate-modal-in max-h-[90vh] min-h-[400px] overflow-y-auto ${className || ''}`}
+        className={`bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg md:max-w-6xl w-full mx-2 p-0 relative animate-modal-in max-h-[90vh] min-h-[400px] md:min-h-[500px] overflow-y-auto ${className || ''}`}
         style={{ touchAction: 'pan-y' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
