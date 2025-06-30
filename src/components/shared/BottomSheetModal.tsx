@@ -63,7 +63,7 @@ const BottomSheetModal: React.FC<BottomSheetModalProps> = ({ open, onClose, titl
       />
       <div
         ref={sheetRef}
-        className={`relative bg-white dark:bg-gray-900 shadow-lg animate-slideUp ${desktopMode ? 'rounded-2xl w-full max-w-lg mx-auto' : 'rounded-t-2xl w-full max-w-md mx-auto'}${className ? ' ' + className : ''}`}
+        className={`relative bg-white dark:bg-gray-900 shadow-lg animate-slideUp ${desktopMode ? 'rounded-2xl w-full mx-auto' : 'rounded-t-2xl w-full max-w-md mx-auto'}${className ? ' ' + className : ''}`}
         style={{ height, maxHeight: '100vh', overflow: 'hidden' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

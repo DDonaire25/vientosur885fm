@@ -48,7 +48,7 @@ const ConversationModal: React.FC<ConversationModalProps> = ({ open, onClose }) 
       title={undefined}
       height={'100vh'}
       desktopMode={!isMobile}
-      className={!isMobile ? 'max-w-[75vw] w-full' : ''}
+      className={!isMobile ? 'max-w-6xl w-full' : ''}
     >
       {/* Layout de 3 columnas solo en escritorio */}
       <div className={`h-full w-full ${isMobile ? '' : 'flex flex-row bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden'} animate-fade-in`}>
