@@ -133,6 +133,40 @@ drop policy if exists "Users can report conversaciones" on public.reported_conve
 create policy "Users can report conversaciones" on public.reported_conversations
   for all using (reporter_id = auth.uid());
 
+-- Añadir columnas user1 y user2 para compatibilidad con frontend (solo si no existen)
+alter table public.conversations add column if not exists user1 uuid references public.profiles(id);
+alter table public.conversations add column if not exists user2 uuid references public.profiles(id);
+
+-- Políticas RLS para update/delete en conversations
+
+drop policy if exists "Participants can update their conversations" on public.conversations;
+create policy "Participants can update their conversations" on public.conversations
+  for update using (exists (
+    select 1 from public.conversation_participants cp
+    where cp.conversation_id = conversations.id and cp.user_id = auth.uid()
+  ));
+
+drop policy if exists "Participants can delete their conversations" on public.conversations;
+create policy "Participants can delete their conversations" on public.conversations
+  for delete using (exists (
+    select 1 from public.conversation_participants cp
+    where cp.conversation_id = conversations.id and cp.user_id = auth.uid()
+  ));
+
+-- Políticas RLS para update/delete en messages
+
+drop policy if exists "Participants can update their messages" on public.messages;
+create policy "Participants can update their messages" on public.messages
+  for update using (
+    sender_id = auth.uid()
+  );
+
+drop policy if exists "Participants can delete their messages" on public.messages;
+create policy "Participants can delete their messages" on public.messages
+  for delete using (
+    sender_id = auth.uid()
+  );
+
 -- Trigger para updated_at en conversations
 create or replace function public.update_conversation_updated_at()
 returns trigger as $$
