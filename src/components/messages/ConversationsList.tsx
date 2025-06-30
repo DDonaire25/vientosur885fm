@@ -9,10 +9,10 @@ import { UserSearch } from '../profile/UserSearch';
 import { FiMessageCircle, FiTrash, FiArchive } from 'react-icons/fi';
 
 interface ConversationsListProps {
-  onSelectUser: (userId: string, userName: string, userAvatar: string) => void;
+  onSelectConversation: (conversationId: string, user: any) => void;
 }
 
-export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUser }) => {
+export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectConversation }) => {
   const { user } = useAuthStore();
   const { conversations, fetchConversations } = useRecentConversations(user?.id || '');
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -27,9 +27,9 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onSelectUs
   const [showArchived, setShowArchived] = useState(false);
 
   // Handler para seleccionar conversación de la lista
-  const handleSelectConv = (u: any) => {
-    setSelectedConvId(u.id);
-    onSelectUser(u.id, u.displayName, u.avatar);
+  const handleSelectConv = (c: any) => {
+    setSelectedConvId(c.id);
+    onSelectConversation(c.id, c);
   };
 
   // Handler para seleccionar usuario desde el buscador

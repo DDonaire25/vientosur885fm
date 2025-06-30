@@ -10,12 +10,13 @@ import { toast } from 'sonner';
 import { blockUser, reportConversation } from '../../lib/chatActions';
 
 interface ChatWindowProps {
+  conversationId: string;
   otherUserId: string;
   otherUserName?: string;
   otherUserAvatar?: string;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ otherUserId, otherUserName, otherUserAvatar }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, otherUserId, otherUserName, otherUserAvatar }) => {
   const { user } = useAuthStore();
   const { messages, fetchMessages, sendMessage, loading } = useDirectMessages(user?.id || '');
   const [input, setInput] = useState('');
@@ -95,17 +96,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ otherUserId, otherUserNa
     }
     if ((!input.trim() && !audioUrl) || loading) return;
     if (audioUrl) {
-      await sendMessage(otherUserId, audioUrl); // solo dos argumentos
+      await sendMessage(conversationId, audioUrl);
       setAudioUrl(null);
     } else {
-      // Si hay replyTo, incluirlo en el mensaje (solo frontend, no persistente en BD)
       const msgContent = input.trim();
-      let msg: any = { sender_id: user?.id, receiver_id: otherUserId, content: msgContent, created_at: new Date().toISOString(), read: false };
+      let msg: any = { sender_id: user?.id, content: msgContent, created_at: new Date().toISOString(), read: false };
       if (replyTo) {
         msg.reply_to = { id: replyTo.id, content: replyTo.content };
       }
-      await sendMessage(otherUserId, msgContent); // solo texto a la BD
-      // Simular reply en frontend (agregar reply_to al último mensaje propio)
+      await sendMessage(conversationId, msgContent);
       setTimeout(() => {
         setReplyTo(null);
       }, 100);
@@ -120,7 +119,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ otherUserId, otherUserNa
 
   const handleAudioReady = async (url: string | null) => {
     if (url) {
-      await sendMessage(otherUserId, url); // Enviar la nota de voz automáticamente
+      await sendMessage(conversationId, url);
       setAudioUrl(null);
       setInput('');
     }
@@ -145,7 +144,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ otherUserId, otherUserNa
       const { error } = await supabase.storage.from('media').upload(filePath, file);
       if (error) throw error;
       const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
-      await sendMessage(otherUserId, urlData.publicUrl);
+      await sendMessage(conversationId, urlData.publicUrl);
       toast.success('Archivo enviado');
     } catch (err) {
       toast.error('Error al subir archivo');

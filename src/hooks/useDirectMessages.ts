@@ -41,10 +41,10 @@ export function useDirectMessages(currentUserId: string) {
   }, [currentUserId]);
 
   // Enviar mensaje
-  const sendMessage = useCallback(async (receiverId: string, content: string) => {
+  const sendMessage = useCallback(async (conversationId: string, content: string) => {
     const { data, error } = await supabase
       .from('messages')
-      .insert({ sender_id: currentUserId, receiver_id: receiverId, content })
+      .insert({ conversation_id: conversationId, sender_id: currentUserId, content })
       .select()
       .single();
     if (!error && data) setMessages((prev) => [...prev, data]);
